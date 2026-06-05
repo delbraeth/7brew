@@ -604,12 +604,11 @@ const DATA = {
   ],
 
   milks: [
-    { id: 'whole',   name: 'Whole Milk',   emoji: '🥛', note: 'Standard · rich',         cost: 0 },
-    { id: '2pct',    name: '2% Milk',      emoji: '🥛', note: 'Standard · lighter',       cost: 0 },
-    { id: 'oat',     name: 'Oat Milk',     emoji: '🌾', note: 'Creamy · dairy-free',      cost: 0.50 },
-    { id: 'almond',  name: 'Almond Milk',  emoji: '🌰', note: 'Nutty · dairy-free',       cost: 0.50 },
-    { id: 'coconut', name: 'Coconut Milk', emoji: '🥥', note: 'Tropical · dairy-free',   cost: 0.50 },
-    { id: 'heavy',   name: 'Heavy Cream',  emoji: '🍶', note: 'Extra rich · indulgent',   cost: 0.75 },
+    { id: 'whole',   name: 'Whole Milk',  emoji: '🥛', note: 'Standard · rich',       cost: 0 },
+    { id: '2pct',    name: '2% Milk',     emoji: '🥛', note: 'Standard · lighter',     cost: 0 },
+    { id: 'oat',     name: 'Oat Milk',    emoji: '🌾', note: 'Creamy · dairy-free',    cost: 0.50 },
+    { id: 'almond',  name: 'Almond Milk', emoji: '🌰', note: 'Nutty · dairy-free',     cost: 0.50 },
+    { id: 'heavy',   name: 'Heavy Cream', emoji: '🍶', note: 'Extra rich · indulgent', cost: 0.75 },
   ],
 
   classicFlavors: [
@@ -699,10 +698,11 @@ const DATA = {
   ],
 
   addons: [
-    { id: 'extra_shot', name: 'Extra Espresso Shot', emoji: '💪', cost: 0.75 },
-    { id: 'cold_foam',  name: 'Cold Foam',            emoji: '☁️',  cost: 0.75 },
-    { id: 'protein',    name: 'Protein Powder',       emoji: '💊', cost: 1.00 },
-    { id: 'whipped',    name: 'Whipped Cream',        emoji: '🍦', cost: 0,    note: 'Free' },
+    { id: 'extra_shot',   name: 'Extra Espresso Shot', emoji: '💪', cost: 0.75 },
+    { id: 'cold_foam',    name: 'Cold Foam',            emoji: '☁️',  cost: 0.75 },
+    { id: 'coconut_milk', name: 'Coconut Milk',         emoji: '🥥', cost: 0.50 },
+    { id: 'protein',      name: 'Protein Powder',       emoji: '💊', cost: 1.00 },
+    { id: 'whipped',      name: 'Whipped Cream',        emoji: '🍦', cost: 0,    note: 'Free' },
   ],
 };
 
@@ -1043,8 +1043,8 @@ const RENDERERS = {
 
       <div class="order-card">
         <div class="order-drink-name">🍵 ${d.name}</div>
-        <div class="summary-row"><span class="sum-label">Category</span><span class="sum-value">${c.emoji} ${c.name}</span></div>
         <div class="summary-row"><span class="sum-label">Size</span><span class="sum-value">${sizeLabel}</span></div>
+        <div class="summary-row"><span class="sum-label">Category</span><span class="sum-value">${c.emoji} ${c.name}</span></div>
         ${tempD  ? `<div class="summary-row"><span class="sum-label">Prep</span><span class="sum-value">${tempD.emoji} ${tempD.name}</span></div>` : ''}
         ${milkD  ? `<div class="summary-row"><span class="sum-label">Milk</span><span class="sum-value">${milkD.emoji} ${milkD.name}${milkD.cost ? ' (+$'+milkD.cost.toFixed(2)+')' : ''}</span></div>` : ''}
         <div class="summary-row"><span class="sum-label">Flavors</span><span class="sum-value">${flavorTxt}</span></div>
