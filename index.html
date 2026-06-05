@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>7 Choose — 7 Brew Menu Builder</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -560,21 +559,6 @@
       onkeydown="if(event.key==='Enter')confirmSave()">
     <button class="btn btn-gold" onclick="confirmSave()">Save to Favorites</button>
     <button class="btn btn-ghost" onclick="closeModal('save-modal')">Cancel</button>
-  </div>
-</div>
-
-<!-- QR MODAL -->
-<div class="modal-overlay hidden" id="qr-modal">
-  <div class="modal" style="max-width:400px;text-align:center">
-    <div class="modal-title">📱 Show at the Window</div>
-    <div style="color:#666;font-size:0.8rem;margin-bottom:12px">Your order + rewards number in one scan</div>
-    <input type="tel" id="qr-phone-input" placeholder="Phone # for rewards (optional)"
-      style="margin-bottom:12px" oninput="refreshQR()" maxlength="20">
-    <div id="qr-canvas" style="display:flex;justify-content:center;margin-bottom:14px">
-      <div id="qr-code"></div>
-    </div>
-    <div id="qr-order-text" style="background:#0d0d0d;border-radius:8px;padding:10px 12px;font-size:0.75rem;color:#888;text-align:left;white-space:pre-line;margin-bottom:14px;line-height:1.7;font-family:monospace"></div>
-    <button class="btn btn-ghost" onclick="closeModal('qr-modal')">Close</button>
   </div>
 </div>
 
@@ -1190,7 +1174,6 @@ const RENDERERS = {
 
       <button class="btn btn-gold"  onclick="openSaveModal()">❤️ Save to Favorites</button>
       <button class="btn btn-green" onclick="addToCart()">➕ Add to Cart</button>
-      <button class="btn btn-ghost" onclick="openQRModal()">📱 QR This Drink</button>
       <button class="btn btn-red"   onclick="startOver()">🔄 Build Another Drink</button>
     `;
   },
@@ -1562,7 +1545,6 @@ function renderCart() {
       <span class="cart-total-label">Est. Total (${S.cart.length} drinks)</span>
       <span class="cart-total-price">~$${total.toFixed(2)}</span>
     </div>
-    <button class="btn btn-green" onclick="openCartQR()">📱 QR Code for Entire Order</button>
     <button class="btn btn-ghost" style="margin-top:4px" onclick="clearCart()">🗑️ Clear Cart</button>
   `;
 }
@@ -1573,110 +1555,6 @@ function clearCart() {
   renderCart();
 }
 
-// ===================== QR CODE =====================
-
-function openCartQR() {
-  // Build multi-drink order text for cart QR
-  document.getElementById('qr-modal').classList.remove('hidden');
-  document.getElementById('qr-phone-input').value =
-    localStorage.getItem('7choose_phone') || '';
-  renderCartQR();
-}
-
-function compactItem(item, idx) {
-  // Terse single-line-per-field format to keep QR data small
-  const parts = [`${idx}:${item.size[0]} ${item.drink}`];
-  if (item.temp)      parts.push(item.temp);
-  if (item.milk)      parts.push(item.milk);
-  if (item.flavors)   parts.push(item.flavors.replace(/:\s*/,':'));
-  if (item.sweetness) parts.push(item.sweetness);
-  if (item.addons && item.addons.length) parts.push(item.addons.join('+'));
-  parts.push(`$${item.price.toFixed(2)}`);
-  return parts.join(' | ');
-}
-
-function renderCartQR() {
-  const phone = document.getElementById('qr-phone-input').value.trim();
-  localStorage.setItem('7choose_phone', phone);
-
-  const total = S.cart.reduce((sum, i) => sum + i.price, 0);
-  const lines = ['7BREW ORDER'];
-  S.cart.forEach((item, i) => lines.push(compactItem(item, i + 1)));
-  lines.push(`TOTAL $${total.toFixed(2)}`);
-  if (phone) lines.push(`PH ${phone.replace(/\D/g,'')}`);
-
-  const text = lines.join('\n');
-  document.getElementById('qr-order-text').textContent = text;
-  const container = document.getElementById('qr-code');
-  container.innerHTML = '';
-  new QRCode(container, {
-    text, width: 240, height: 240,
-    colorDark: '#ffffff', colorLight: '#0d0d0d',
-    correctLevel: QRCode.CorrectLevel.L,
-  });
-}
-
-function buildOrderText(phone) {
-  const { category: c, drink: d, size, temp, milk, flavors, combo, sweetness, addons } = S.order;
-  const milkD   = milk      ? DATA.milks.find(x => x.id === milk)         : null;
-  const tempD   = temp      ? DATA.temps.find(x => x.id === temp)          : null;
-  const sweetD  = sweetness ? DATA.sweetness.find(x => x.id === sweetness) : null;
-  const addonsD = addons.map(id => DATA.addons.find(x => x.id === id)).filter(Boolean);
-  const sizeLabel = { S:'Small', M:'Medium', L:'Large' }[size] || size;
-
-  let flavorLine = 'None';
-  if (combo) flavorLine = `${combo.name.replace(/[^\w\s&+]/g,'').trim()}: ${combo.flavors.join(' + ')}`;
-  else if (flavors.length) flavorLine = flavors.join(' + ');
-
-  const lines = [
-    '7BREW ORDER',
-    `${sizeLabel} ${d.name}`,
-    tempD  ? `Prep: ${tempD.name}`    : null,
-    milkD && milkD.id !== 'none' ? `Milk: ${milkD.name}` : null,
-    `Flavors: ${flavorLine}`,
-    sweetD ? `Sweet: ${sweetD.name}`  : null,
-    addonsD.length ? `Extras: ${addonsD.map(a=>a.name).join('+')}` : null,
-    `Est $${calcPrice().toFixed(2)}`,
-    phone ? `PH ${phone.replace(/\D/g,'')}` : null,
-  ].filter(Boolean);
-
-  return lines.join('\n');
-}
-
-let _qrInstance = null;
-
-function openQRModal() {
-  document.getElementById('qr-modal').classList.remove('hidden');
-  document.getElementById('qr-phone-input').value =
-    localStorage.getItem('7choose_phone') || '';
-  renderQR();
-}
-
-function refreshQR() {
-  const phone = document.getElementById('qr-phone-input').value.trim();
-  localStorage.setItem('7choose_phone', phone);
-  // Re-render whichever QR mode is active
-  if (S.cart.length > 0 && S.tab === 'cart') renderCartQR();
-  else renderQR();
-}
-
-function renderQR() {
-  const phone = document.getElementById('qr-phone-input').value.trim();
-  const text  = buildOrderText(phone);
-
-  document.getElementById('qr-order-text').textContent = text;
-
-  const container = document.getElementById('qr-code');
-  container.innerHTML = '';
-  _qrInstance = new QRCode(container, {
-    text,
-    width:  240,
-    height: 240,
-    colorDark:  '#ffffff',
-    colorLight: '#0d0d0d',
-    correctLevel: QRCode.CorrectLevel.L,
-  });
-}
 
 // ===================== INIT =====================
 
