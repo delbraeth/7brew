@@ -780,7 +780,6 @@ function render() {
   document.getElementById('btn-back').classList.toggle('hidden', S.step === 0);
   const el = document.getElementById('step-content');
   el.innerHTML = RENDERERS[stepName]();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function renderProgress(steps, idx) {
