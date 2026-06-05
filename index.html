@@ -391,6 +391,61 @@
     }
     .modal input:focus { border-color: #C8102E; }
 
+    /* ── CART BADGE ── */
+    .cart-badge {
+      position: absolute; top: -4px; right: -6px;
+      background: #F5C518; color: #0d0d0d;
+      font-size: 0.65rem; font-weight: 900;
+      border-radius: 10px; padding: 1px 5px;
+      min-width: 16px; text-align: center;
+    }
+
+    /* ── CART ITEM ── */
+    .cart-item {
+      background: #181818;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .cart-item-num {
+      background: #C8102E;
+      color: #fff;
+      font-weight: 900;
+      font-size: 0.85rem;
+      border-radius: 50%;
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .cart-item-body { flex: 1; min-width: 0; }
+    .cart-item-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+    .cart-item-detail { color: #666; font-size: 0.78rem; line-height: 1.6; }
+    .cart-item-price { color: #F5C518; font-weight: 700; font-size: 0.88rem; margin-top: 6px; }
+    .cart-item-del {
+      background: transparent; border: none; color: #444;
+      cursor: pointer; font-size: 1.1rem; padding: 2px 4px;
+      flex-shrink: 0; transition: color 0.15s;
+    }
+    .cart-item-del:hover { color: #C8102E; }
+    .cart-total {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+    .cart-total-label { color: #888; }
+    .cart-total-price { font-size: 1.3rem; color: #F5C518; font-weight: 900; }
+
     /* ── FLAVOR FILTER BAR ── */
     .filter-bar {
       display: flex;
@@ -447,6 +502,9 @@
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" id="tab-build" onclick="switchTab('build')">🍵 Build</button>
+    <button class="nav-tab" id="tab-cart" onclick="switchTab('cart')" style="position:relative">
+      🛒 Cart<span id="cart-badge" class="cart-badge hidden">0</span>
+    </button>
     <button class="nav-tab" id="tab-favs" onclick="switchTab('favs')">❤️ Saved</button>
   </div>
 </div>
@@ -460,6 +518,17 @@
     </div>
     <button class="btn-back hidden" id="btn-back" onclick="goBack()">← Back</button>
     <div id="step-content"></div>
+  </div>
+</div>
+
+<!-- CART VIEW -->
+<div id="view-cart" class="hidden">
+  <div class="container">
+    <div class="step-header">
+      <div class="step-title">🛒 Your Cart</div>
+      <div class="step-subtitle" id="cart-subtitle">Build drinks then order together</div>
+    </div>
+    <div id="cart-list"></div>
   </div>
 </div>
 
@@ -762,6 +831,7 @@ const S = {
   tab: 'build',
   step: 0,
   flavorFilter: 'all',
+  cart: [],
   order: {
     category: null, drink: null, size: null,
     temp: null, milk: null, flavors: [], combo: null,
@@ -1119,7 +1189,8 @@ const RENDERERS = {
       <p class="price-note">Prices are estimates · actual prices vary by location</p>
 
       <button class="btn btn-gold"  onclick="openSaveModal()">❤️ Save to Favorites</button>
-      <button class="btn btn-green" onclick="openQRModal()">📱 Generate QR Code</button>
+      <button class="btn btn-green" onclick="addToCart()">➕ Add to Cart</button>
+      <button class="btn btn-ghost" onclick="openQRModal()">📱 QR This Drink</button>
       <button class="btn btn-red"   onclick="startOver()">🔄 Build Another Drink</button>
     `;
   },
@@ -1210,10 +1281,13 @@ function startOver() {
 function switchTab(tab) {
   S.tab = tab;
   document.getElementById('view-build').classList.toggle('hidden', tab !== 'build');
+  document.getElementById('view-cart').classList.toggle('hidden', tab !== 'cart');
   document.getElementById('view-favs').classList.toggle('hidden', tab !== 'favs');
   document.getElementById('tab-build').classList.toggle('active', tab === 'build');
+  document.getElementById('tab-cart').classList.toggle('active', tab === 'cart');
   document.getElementById('tab-favs').classList.toggle('active', tab === 'favs');
   if (tab === 'favs') renderFavs();
+  if (tab === 'cart') renderCart();
 }
 
 // ===================== FAVORITES =====================
@@ -1399,7 +1473,146 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
 }
 
+// ===================== CART =====================
+
+function buildCartItem() {
+  const { category: c, drink: d, size, temp, milk, flavors, combo, sweetness, addons } = S.order;
+  const milkD   = milk      ? DATA.milks.find(x => x.id === milk)         : null;
+  const tempD   = temp      ? DATA.temps.find(x => x.id === temp)          : null;
+  const sweetD  = sweetness ? DATA.sweetness.find(x => x.id === sweetness) : null;
+  const addonsD = addons.map(id => DATA.addons.find(x => x.id === id)).filter(Boolean);
+  const sizeLabel = { S:'Small', M:'Medium', L:'Large' }[size] || size;
+
+  let flavorTxt = '';
+  if (combo) flavorTxt = `${combo.name}: ${combo.flavors.join(' + ')}`;
+  else if (flavors.length) flavorTxt = flavors.join(' + ');
+
+  return {
+    drink:     d.name,
+    category:  c.name,
+    size:      sizeLabel,
+    temp:      tempD   ? tempD.name   : null,
+    milk:      milkD && milkD.id !== 'none' ? milkD.name : null,
+    flavors:   flavorTxt || null,
+    sweetness: sweetD  ? sweetD.name  : null,
+    addons:    addonsD.map(a => a.name),
+    price:     calcPrice(),
+  };
+}
+
+function addToCart() {
+  const item = buildCartItem();
+  S.cart.push(item);
+  updateCartBadge();
+  toast(`✅ "${item.drink}" added to cart (${S.cart.length} item${S.cart.length > 1 ? 's' : ''})`);
+  startOver();
+}
+
+function updateCartBadge() {
+  const badge = document.getElementById('cart-badge');
+  if (S.cart.length === 0) {
+    badge.classList.add('hidden');
+  } else {
+    badge.textContent = S.cart.length;
+    badge.classList.remove('hidden');
+  }
+}
+
+function removeFromCart(idx) {
+  S.cart.splice(idx, 1);
+  updateCartBadge();
+  renderCart();
+}
+
+function renderCart() {
+  const el = document.getElementById('cart-list');
+  const sub = document.getElementById('cart-subtitle');
+
+  if (S.cart.length === 0) {
+    sub.textContent = 'Build drinks then order together';
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🛒</div>
+        <div class="empty-title">Cart is empty</div>
+        <div style="font-size:0.85rem">Build a drink and tap ➕ Add to Cart</div>
+      </div>`;
+    return;
+  }
+
+  const total = S.cart.reduce((sum, i) => sum + i.price, 0);
+  sub.textContent = `${S.cart.length} drink${S.cart.length > 1 ? 's' : ''} · est. $${total.toFixed(2)}`;
+
+  el.innerHTML = S.cart.map((item, i) => `
+    <div class="cart-item">
+      <div class="cart-item-num">${i + 1}</div>
+      <div class="cart-item-body">
+        <div class="cart-item-name">${item.drink}</div>
+        <div class="cart-item-detail">
+          ${item.size}${item.temp ? ' · ' + item.temp : ''}${item.milk ? ' · ' + item.milk : ''}
+          ${item.flavors ? '<br>' + item.flavors : ''}
+          ${item.sweetness ? ' · ' + item.sweetness : ''}
+          ${item.addons && item.addons.length ? '<br>+ ' + item.addons.join(', ') : ''}
+        </div>
+        <div class="cart-item-price">~$${item.price.toFixed(2)}</div>
+      </div>
+      <button class="cart-item-del" onclick="removeFromCart(${i})">✕</button>
+    </div>
+  `).join('') + `
+    <div class="cart-total">
+      <span class="cart-total-label">Est. Total (${S.cart.length} drinks)</span>
+      <span class="cart-total-price">~$${total.toFixed(2)}</span>
+    </div>
+    <button class="btn btn-green" onclick="openCartQR()">📱 QR Code for Entire Order</button>
+    <button class="btn btn-ghost" style="margin-top:4px" onclick="clearCart()">🗑️ Clear Cart</button>
+  `;
+}
+
+function clearCart() {
+  S.cart = [];
+  updateCartBadge();
+  renderCart();
+}
+
 // ===================== QR CODE =====================
+
+function openCartQR() {
+  // Build multi-drink order text for cart QR
+  document.getElementById('qr-modal').classList.remove('hidden');
+  document.getElementById('qr-phone-input').value =
+    localStorage.getItem('7choose_phone') || '';
+  renderCartQR();
+}
+
+function renderCartQR() {
+  const phone = document.getElementById('qr-phone-input').value.trim();
+  localStorage.setItem('7choose_phone', phone);
+
+  const total = S.cart.reduce((sum, i) => sum + i.price, 0);
+  const lines = ['=== 7 CHOOSE ORDER ==='];
+  S.cart.forEach((item, i) => {
+    lines.push(`\nDRINK ${i + 1}:`);
+    lines.push(`  ${item.drink} (${item.size})`);
+    if (item.temp)      lines.push(`  Prep:    ${item.temp}`);
+    if (item.milk)      lines.push(`  Milk:    ${item.milk}`);
+    if (item.flavors)   lines.push(`  Flavors: ${item.flavors}`);
+    if (item.sweetness) lines.push(`  Sweet:   ${item.sweetness}`);
+    if (item.addons && item.addons.length) lines.push(`  Extras:  ${item.addons.join(', ')}`);
+    lines.push(`  Est:     ~$${item.price.toFixed(2)}`);
+  });
+  lines.push(`\nTOTAL EST: ~$${total.toFixed(2)}`);
+  if (phone) lines.push(`PHONE: ${phone}`);
+  lines.push('=====================');
+
+  const text = lines.join('\n');
+  document.getElementById('qr-order-text').textContent = text;
+  const container = document.getElementById('qr-code');
+  container.innerHTML = '';
+  new QRCode(container, {
+    text, width: 220, height: 220,
+    colorDark: '#ffffff', colorLight: '#0d0d0d',
+    correctLevel: QRCode.CorrectLevel.M,
+  });
+}
 
 function buildOrderText(phone) {
   const { category: c, drink: d, size, temp, milk, flavors, combo, sweetness, addons } = S.order;
@@ -1442,7 +1655,9 @@ function openQRModal() {
 function refreshQR() {
   const phone = document.getElementById('qr-phone-input').value.trim();
   localStorage.setItem('7choose_phone', phone);
-  renderQR();
+  // Re-render whichever QR mode is active
+  if (S.cart.length > 0 && S.tab === 'cart') renderCartQR();
+  else renderQR();
 }
 
 function renderQR() {
