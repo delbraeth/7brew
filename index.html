@@ -309,7 +309,19 @@
       padding: 16px;
       margin-bottom: 12px;
     }
-    .fav-label { color: #F5C518; font-weight: 800; font-size: 1rem; margin-bottom: 6px; }
+    .fav-label-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .fav-label { color: #F5C518; font-weight: 800; font-size: 1rem; flex: 1; }
+    .fav-edit-btn {
+      background: transparent; border: none; cursor: pointer;
+      font-size: 0.9rem; padding: 2px 4px; opacity: 0.5;
+      transition: opacity 0.15s; flex-shrink: 0;
+    }
+    .fav-edit-btn:hover { opacity: 1; }
+    .fav-rename-input {
+      flex: 1; background: #0d0d0d; border: 1px solid #C8102E;
+      color: #F5C518; font-weight: 800; font-size: 1rem;
+      padding: 3px 8px; border-radius: 6px; outline: none; width: 100%;
+    }
     .fav-detail { color: #666; font-size: 0.8rem; margin-bottom: 2px; line-height: 1.5; }
     .fav-detail strong { color: #999; }
     .fav-est { color: #C8102E; font-weight: 700; font-size: 0.92rem; margin-top: 10px; }
@@ -1184,8 +1196,11 @@ function renderFavs() {
     return;
   }
   el.innerHTML = favs.map((f, i) => `
-    <div class="fav-card">
-      <div class="fav-label">${f.label}</div>
+    <div class="fav-card" id="fav-card-${i}">
+      <div class="fav-label-row">
+        <div class="fav-label" id="fav-label-${i}">${f.label}</div>
+        <button class="fav-edit-btn" onclick="startRename(${i})" title="Rename">✏️</button>
+      </div>
       <div class="fav-detail"><strong>Drink:</strong> ${f.drink} · ${f.size}</div>
       ${f.temp ? `<div class="fav-detail"><strong>Prep:</strong> ${f.temp}</div>` : ''}
       ${f.milk ? `<div class="fav-detail"><strong>Milk:</strong> ${f.milk}</div>` : ''}
@@ -1216,6 +1231,63 @@ function showReorder(idx) {
   ].filter(Boolean);
   document.getElementById('reorder-content').innerHTML = lines.join('<br>');
   document.getElementById('reorder-modal').classList.remove('hidden');
+}
+
+function startRename(idx) {
+  const labelEl = document.getElementById(`fav-label-${idx}`);
+  const editBtn = labelEl.nextElementSibling;
+  const current = labelEl.textContent.trim();
+
+  // Replace label with input
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.maxLength = 40;
+  input.className = 'fav-rename-input';
+  labelEl.replaceWith(input);
+  editBtn.textContent = '✅';
+  editBtn.onclick = () => saveFavName(idx, input, editBtn);
+  input.focus();
+  input.select();
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveFavName(idx, input, editBtn);
+    if (e.key === 'Escape') cancelRename(idx, current, input, editBtn);
+  });
+  input.addEventListener('blur', () => {
+    // Small delay so the ✅ click registers before blur fires
+    setTimeout(() => { if (document.contains(input)) saveFavName(idx, input, editBtn); }, 150);
+  });
+}
+
+function saveFavName(idx, input, editBtn) {
+  if (!document.contains(input)) return; // already saved
+  const newName = input.value.trim() || input.value;
+  if (!newName) return;
+
+  const favs = loadFavs();
+  favs[idx].label = newName;
+  saveFavs(favs);
+
+  // Swap input back to label
+  const newLabel = document.createElement('div');
+  newLabel.className = 'fav-label';
+  newLabel.id = `fav-label-${idx}`;
+  newLabel.textContent = newName;
+  input.replaceWith(newLabel);
+  editBtn.textContent = '✏️';
+  editBtn.onclick = () => startRename(idx);
+  toast(`✅ Renamed to "${newName}"`);
+}
+
+function cancelRename(idx, original, input, editBtn) {
+  const newLabel = document.createElement('div');
+  newLabel.className = 'fav-label';
+  newLabel.id = `fav-label-${idx}`;
+  newLabel.textContent = original;
+  input.replaceWith(newLabel);
+  editBtn.textContent = '✏️';
+  editBtn.onclick = () => startRename(idx);
 }
 
 function deleteFav(idx) {
