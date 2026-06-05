@@ -504,7 +504,7 @@ const DATA = {
     {
       id: 'originals', name: '7 Originals', emoji: '⭐',
       desc: 'Signature drinks — start here', color: '#C8102E',
-      hasTemp: true, hasMilk: true, hasFlavors: true,
+      hasTemp: true, hasMilk: true, hasFlavors: true, hasCombos: false,
       prices: { S: 6.18, M: 7.15, L: 8.19 },
       drinks: [
         { id: 'blondie', name: 'Blondie', desc: 'The #1 seller. Vanilla + caramel + white coffee.', defaults: ['Vanilla', 'Caramel'] },
@@ -519,7 +519,7 @@ const DATA = {
     {
       id: 'classics', name: '7 Classics', emoji: '☕',
       desc: 'Classic coffee & espresso drinks', color: '#8B4513',
-      hasTemp: true, hasMilk: true, hasFlavors: true,
+      hasTemp: true, hasMilk: true, hasFlavors: true, hasCombos: false,
       prices: { S: 4.50, M: 5.50, L: 6.50 },
       drinks: [
         { id: 'latte', name: 'Latte', desc: 'Espresso + steamed milk. Your canvas, add any flavors.', defaults: [] },
@@ -537,7 +537,7 @@ const DATA = {
     {
       id: 'energy', name: '7 Energy', emoji: '⚡',
       desc: 'Energy drinks with custom syrups', color: '#1E90FF',
-      hasTemp: false, hasMilk: false, hasFlavors: true,
+      hasTemp: false, hasMilk: false, hasFlavors: true, hasCombos: true,
       prices: { S: 6.83, M: 8.13, L: 9.43 },
       drinks: [
         { id: 'seven_energy', name: 'Seven Energy', desc: 'The original 7 Brew energy base. Build any combo.', defaults: [] },
@@ -548,7 +548,7 @@ const DATA = {
     {
       id: 'fizz', name: '7 Fizz', emoji: '🫧',
       desc: 'Sparkling sodas · caffeine-free', color: '#9B59B6',
-      hasTemp: false, hasMilk: false, hasFlavors: true,
+      hasTemp: false, hasMilk: false, hasFlavors: true, hasCombos: true,
       prices: { S: 5.03, M: 5.71, L: 6.39 },
       drinks: [
         { id: 'fizz', name: '7 Fizz Soda', desc: 'Sparkling water + flavor syrups. Caffeine-free, fully custom.', defaults: [] },
@@ -558,7 +558,7 @@ const DATA = {
     {
       id: 'teas', name: 'Teas & Chai', emoji: '🍵',
       desc: 'Hot and iced teas, chai, matcha', color: '#27AE60',
-      hasTemp: true, hasMilk: true, hasFlavors: true,
+      hasTemp: true, hasMilk: true, hasFlavors: true, hasCombos: false,
       prices: { S: 3.50, M: 4.25, L: 5.00 },
       drinks: [
         { id: 'earl_grey', name: 'Earl Grey', desc: 'Classic bergamot black tea. Hot or iced.', defaults: [] },
@@ -572,7 +572,7 @@ const DATA = {
     {
       id: 'lemonades', name: 'Lemonades', emoji: '🍋',
       desc: 'Fresh lemonades · caffeine-free', color: '#F39C12',
-      hasTemp: false, hasMilk: false, hasFlavors: true,
+      hasTemp: false, hasMilk: false, hasFlavors: true, hasCombos: false,
       prices: { S: 3.50, M: 4.50, L: 5.50 },
       drinks: [
         { id: 'classic_lem', name: 'Classic Lemonade', desc: 'Tart and crisp fresh lemonade. Budget-friendly.', defaults: [] },
@@ -929,9 +929,11 @@ const RENDERERS = {
       countHtml = sel.map(n => `<span class="flavor-tag${n.startsWith('SF') ? ' sf' : ''}">${n}</span>`).join('');
     }
 
+    const showCombos = !!(S.order.category && S.order.category.hasCombos);
+
     const filters = [
       { id: 'all',    label: 'All'      },
-      { id: 'combos', label: '⭐ Combos' },
+      ...(showCombos ? [{ id: 'combos', label: '⭐ Combos' }] : []),
       { id: 'classic',label: '☕ Classic' },
       { id: 'fruit',  label: '🍓 Fruit'  },
       { id: 'sf',     label: '🌿 SF'     },
@@ -945,7 +947,7 @@ const RENDERERS = {
       </div>
     `;
 
-    const comboSection = (f === 'all' || f === 'combos') ? `
+    const comboSection = showCombos && (f === 'all' || f === 'combos') ? `
       <div class="section-label">⭐ Signature Combos — Flavor Madness</div>
       <div class="combo-grid">
         ${DATA.combos.map(cb => `
@@ -1113,6 +1115,7 @@ function pick(field, id) {
     category: () => {
       const cat = DATA.categories.find(x => x.id === id);
       S.order = { category: cat, drink: null, size: null, temp: null, milk: null, flavors: [], combo: null, sweetness: null, addons: [] };
+      S.flavorFilter = 'all';
     },
     drink: () => {
       const d = S.order.category.drinks.find(x => x.id === id);
