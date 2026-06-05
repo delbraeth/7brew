@@ -1583,34 +1583,36 @@ function openCartQR() {
   renderCartQR();
 }
 
+function compactItem(item, idx) {
+  // Terse single-line-per-field format to keep QR data small
+  const parts = [`${idx}:${item.size[0]} ${item.drink}`];
+  if (item.temp)      parts.push(item.temp);
+  if (item.milk)      parts.push(item.milk);
+  if (item.flavors)   parts.push(item.flavors.replace(/:\s*/,':'));
+  if (item.sweetness) parts.push(item.sweetness);
+  if (item.addons && item.addons.length) parts.push(item.addons.join('+'));
+  parts.push(`$${item.price.toFixed(2)}`);
+  return parts.join(' | ');
+}
+
 function renderCartQR() {
   const phone = document.getElementById('qr-phone-input').value.trim();
   localStorage.setItem('7choose_phone', phone);
 
   const total = S.cart.reduce((sum, i) => sum + i.price, 0);
-  const lines = ['=== 7 CHOOSE ORDER ==='];
-  S.cart.forEach((item, i) => {
-    lines.push(`\nDRINK ${i + 1}:`);
-    lines.push(`  ${item.drink} (${item.size})`);
-    if (item.temp)      lines.push(`  Prep:    ${item.temp}`);
-    if (item.milk)      lines.push(`  Milk:    ${item.milk}`);
-    if (item.flavors)   lines.push(`  Flavors: ${item.flavors}`);
-    if (item.sweetness) lines.push(`  Sweet:   ${item.sweetness}`);
-    if (item.addons && item.addons.length) lines.push(`  Extras:  ${item.addons.join(', ')}`);
-    lines.push(`  Est:     ~$${item.price.toFixed(2)}`);
-  });
-  lines.push(`\nTOTAL EST: ~$${total.toFixed(2)}`);
-  if (phone) lines.push(`PHONE: ${phone}`);
-  lines.push('=====================');
+  const lines = ['7BREW ORDER'];
+  S.cart.forEach((item, i) => lines.push(compactItem(item, i + 1)));
+  lines.push(`TOTAL $${total.toFixed(2)}`);
+  if (phone) lines.push(`PH ${phone.replace(/\D/g,'')}`);
 
   const text = lines.join('\n');
   document.getElementById('qr-order-text').textContent = text;
   const container = document.getElementById('qr-code');
   container.innerHTML = '';
   new QRCode(container, {
-    text, width: 220, height: 220,
+    text, width: 240, height: 240,
     colorDark: '#ffffff', colorLight: '#0d0d0d',
-    correctLevel: QRCode.CorrectLevel.M,
+    correctLevel: QRCode.CorrectLevel.L,
   });
 }
 
@@ -1627,17 +1629,15 @@ function buildOrderText(phone) {
   else if (flavors.length) flavorLine = flavors.join(' + ');
 
   const lines = [
-    '=== 7 CHOOSE ORDER ===',
-    `Drink:    ${d.name}`,
-    `Size:     ${sizeLabel}`,
-    tempD  ? `Prep:     ${tempD.name}`    : null,
-    milkD && milkD.id !== 'none' ? `Milk:     ${milkD.name}` : null,
-    `Flavors:  ${flavorLine}`,
-    sweetD ? `Sweet:    ${sweetD.name}`   : null,
-    addonsD.length ? `Extras:   ${addonsD.map(a=>a.name).join(', ')}` : null,
-    `Est:      ~$${calcPrice().toFixed(2)}`,
-    phone ? `Phone:    ${phone}` : null,
-    '=====================',
+    '7BREW ORDER',
+    `${sizeLabel} ${d.name}`,
+    tempD  ? `Prep: ${tempD.name}`    : null,
+    milkD && milkD.id !== 'none' ? `Milk: ${milkD.name}` : null,
+    `Flavors: ${flavorLine}`,
+    sweetD ? `Sweet: ${sweetD.name}`  : null,
+    addonsD.length ? `Extras: ${addonsD.map(a=>a.name).join('+')}` : null,
+    `Est $${calcPrice().toFixed(2)}`,
+    phone ? `PH ${phone.replace(/\D/g,'')}` : null,
   ].filter(Boolean);
 
   return lines.join('\n');
@@ -1670,11 +1670,11 @@ function renderQR() {
   container.innerHTML = '';
   _qrInstance = new QRCode(container, {
     text,
-    width:  220,
-    height: 220,
+    width:  240,
+    height: 240,
     colorDark:  '#ffffff',
     colorLight: '#0d0d0d',
-    correctLevel: QRCode.CorrectLevel.M,
+    correctLevel: QRCode.CorrectLevel.L,
   });
 }
 
