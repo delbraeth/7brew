@@ -445,6 +445,19 @@
     .cart-total-label { color: #888; }
     .cart-total-price { font-size: 1.3rem; color: #F5C518; font-weight: 900; }
 
+    /* ── ORDER READ-OFF BOX ── */
+    .order-readoff {
+      background: #0d0d0d;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      color: #ccc;
+      white-space: pre-line;
+      line-height: 1.9;
+    }
+
     /* ── FLAVOR FILTER BAR ── */
     .filter-bar {
       display: flex;
@@ -1525,6 +1538,17 @@ function renderCart() {
   const total = S.cart.reduce((sum, i) => sum + i.price, 0);
   sub.textContent = `${S.cart.length} drink${S.cart.length > 1 ? 's' : ''} · est. $${total.toFixed(2)}`;
 
+  // Build read-off summary text
+  const summaryLines = S.cart.map((item, i) => {
+    const parts = [`${item.size} ${item.drink}`];
+    if (item.temp)      parts.push(item.temp);
+    if (item.milk)      parts.push(item.milk);
+    if (item.flavors)   parts.push(item.flavors);
+    if (item.sweetness) parts.push(item.sweetness);
+    if (item.addons && item.addons.length) parts.push(item.addons.join(', '));
+    return `${i + 1}. ${parts.join(' · ')}`;
+  });
+
   el.innerHTML = S.cart.map((item, i) => `
     <div class="cart-item">
       <div class="cart-item-num">${i + 1}</div>
@@ -1542,10 +1566,14 @@ function renderCart() {
     </div>
   `).join('') + `
     <div class="cart-total">
-      <span class="cart-total-label">Est. Total (${S.cart.length} drinks)</span>
+      <span class="cart-total-label">Est. Total (${S.cart.length} drink${S.cart.length > 1 ? 's' : ''})</span>
       <span class="cart-total-price">~$${total.toFixed(2)}</span>
     </div>
-    <button class="btn btn-ghost" style="margin-top:4px" onclick="clearCart()">🗑️ Clear Cart</button>
+
+    <div class="section-label" style="margin-top:18px">📋 Read-Off at the Window</div>
+    <div class="order-readoff">${summaryLines.join('\n')}</div>
+
+    <button class="btn btn-ghost" style="margin-top:12px" onclick="clearCart()">🗑️ Clear Cart</button>
   `;
 }
 
