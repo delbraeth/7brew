@@ -676,17 +676,31 @@ const DATA = {
   ],
 
   combos: [
-    { id: 'pixie',       name: '🍬 Pixie Stick',   flavors: ['Almond','Orange','Pomegranate'],        taste: 'Sweet, tangy, candy-like' },
-    { id: 'nightshade',  name: '🌙 Nightshade',     flavors: ['Blue Raspberry','Lavender'],            taste: 'Mysterious, floral' },
-    { id: 'sunrise',     name: '🌅 Sunrise',         flavors: ['Peach','Mango','Orange'],              taste: 'Bright, warm, tropical' },
-    { id: 'black_mamba', name: '🐍 Black Mamba',    flavors: ['Strawberry','Blue Raspberry','Coconut'],taste: 'Bold, deep berry' },
-    { id: 'hummingbird', name: '🐦 Hummingbird',    flavors: ['Strawberry','Kiwi'],                    taste: 'Light, delicate, fruity' },
-    { id: 'ocean_breeze',name: '🌊 Ocean Breeze',   flavors: ['Blue Raspberry','Coconut'],             taste: 'Tropical beach vibes' },
-    { id: 'blue_typhoon',name: '🌀 Blue Typhoon',   flavors: ['Blue Raspberry','Kiwi','Almond'],       taste: 'Bold, blue, tropical' },
-    { id: 'brew_lagoon', name: '🏝️ Brew Lagoon',   flavors: ['Coconut','Lime','Blue Raspberry'],      taste: 'Island-style, refreshing' },
-    { id: 'hula',        name: '🌺 Hula',            flavors: ['Strawberry','Pineapple'],              taste: 'Sweet tropical fruit' },
-    { id: 'love_potion', name: '💕 Love Potion',    flavors: ['Strawberry','Raspberry','Cherry'],      taste: 'Sweet, romantic berry' },
-    { id: 'lucky_seven', name: '🍀 Lucky Seven',    flavors: ['Kiwi','Lime','Blue Raspberry'],         taste: 'June featured · bright & fresh' },
+    // ── Top fan favorites ──
+    { id: 'rainbow_burst',name: '🌈 Rainbow Burst',  flavors: ['Blue Raspberry','Strawberry','Mango'],  taste: '#1 most ordered — bright candy fruit' },
+    { id: 'pixie',        name: '🍬 Pixie Stick',    flavors: ['Almond','Orange','Pomegranate'],         taste: 'Sweet, tangy, candy-like' },
+    { id: 'ocean_breeze', name: '🌊 Ocean Breeze',   flavors: ['Blue Raspberry','Coconut'],              taste: 'Tropical beach vibes' },
+    { id: 'nightshade',   name: '🌙 Nightshade',     flavors: ['Blue Raspberry','Lavender'],             taste: 'Mysterious, floral' },
+    { id: 'sunrise',      name: '🌅 Sunrise',         flavors: ['Peach','Mango','Orange'],               taste: 'Bright, warm, tropical' },
+    { id: 'black_mamba',  name: '🐍 Black Mamba',    flavors: ['Strawberry','Blue Raspberry','Coconut'], taste: 'Bold, deep berry' },
+    // ── Fruity & berry ──
+    { id: 'brewberry',    name: '🫐 Brewberry',       flavors: ['Strawberry','Blue Raspberry'],           taste: 'Berry-forward, smooth finish' },
+    { id: 'georgia_peach',name: '🍑 Georgia Peach',   flavors: ['Peach','Strawberry'],                   taste: 'Juicy, sunny, Southern sweet' },
+    { id: 'hummingbird',  name: '🐦 Hummingbird',    flavors: ['Strawberry','Kiwi'],                     taste: 'Light, delicate, fruity' },
+    { id: 'hula',         name: '🌺 Hula',            flavors: ['Strawberry','Pineapple'],               taste: 'Sweet tropical fruit' },
+    { id: 'love_potion',  name: '💕 Love Potion',    flavors: ['Strawberry','Raspberry','Cherry'],        taste: 'Sweet, romantic berry' },
+    { id: 'pink_mermaid', name: '🧜 Pink Mermaid',   flavors: ['Watermelon','Strawberry','Coconut'],     taste: 'Tropical showstopper, pastel pink' },
+    { id: 'dragons_blood',name: '🐉 Dragon\'s Blood', flavors: ['Blue Raspberry','Cherry'],              taste: 'Bold, deep red-fruit punch' },
+    { id: 'pink_starburst',name:'🍭 Pink Starburst',  flavors: ['Strawberry','Lemon'],                   taste: 'Candy-sweet, citrus pop' },
+    // ── Tropical ──
+    { id: 'bahama_mama',  name: '🌴 Bahama Mama',    flavors: ['Coconut','Pineapple','Orange'],           taste: 'Island cocktail vibes' },
+    { id: 'blue_typhoon', name: '🌀 Blue Typhoon',   flavors: ['Blue Raspberry','Kiwi','Almond'],        taste: 'Bold, blue, tropical' },
+    { id: 'brew_lagoon',  name: '🏝️ Brew Lagoon',   flavors: ['Coconut','Lime','Blue Raspberry'],       taste: 'Island-style, refreshing' },
+    { id: 'lucky_seven',  name: '🍀 Lucky Seven',    flavors: ['Kiwi','Lime','Blue Raspberry'],          taste: 'June featured · bright & fresh' },
+    // ── Candy & dessert ──
+    { id: 'orange_sherbet',name:'🍊 Orange Sherbet', flavors: ['Orange','Vanilla','Strawberry'],         taste: 'Creamy citrus, like frozen sherbet' },
+    { id: 'green_gummy',  name: '🐸 Green Gummy Bear',flavors:['Kiwi','Green Apple','Lime'],             taste: 'Sour-sweet gummy candy vibe' },
+    { id: 'magic_mint',   name: '🌿 Magic Mint',     flavors: ['Peppermint','Lime','Coconut'],           taste: 'Cool, crisp, spa-like' },
   ],
 
   sweetness: [
