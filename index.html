@@ -378,6 +378,28 @@
     }
     .modal input:focus { border-color: #C8102E; }
 
+    /* ── FLAVOR FILTER BAR ── */
+    .filter-bar {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .filter-pill {
+      background: #181818;
+      border: 1px solid #2a2a2a;
+      color: #777;
+      padding: 7px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .filter-pill:hover { border-color: #555; color: #ccc; }
+    .filter-pill.active { background: #C8102E; border-color: #C8102E; color: #fff; }
+
     /* ── MISC ── */
     .hidden { display: none !important; }
     .tag {
@@ -689,6 +711,7 @@ const DATA = {
 const S = {
   tab: 'build',
   step: 0,
+  flavorFilter: 'all',
   order: {
     category: null, drink: null, size: null,
     temp: null, milk: null, flavors: [], combo: null,
@@ -862,27 +885,34 @@ const RENDERERS = {
   flavors: () => {
     const sel = S.order.flavors;
     const combo = S.order.combo;
-
-    const allFlavors = [...DATA.classicFlavors, ...DATA.fruitFlavors, ...DATA.sfFlavors];
+    const f = S.flavorFilter;
 
     let countHtml = '';
     if (combo) {
       countHtml = `<span style="color:#888">Combo:</span> <span class="flavor-tag combo">${combo.name}</span> — ${combo.flavors.join(', ')}`;
     } else if (sel.length === 0) {
-      countHtml = `<span style="color:#555">☝️ Pick up to 3 flavors, or choose a Signature Combo below</span>`;
+      countHtml = `<span style="color:#555">☝️ Pick any syrups, or choose a Signature Combo</span>`;
     } else {
-      countHtml = sel.map(f => `<span class="flavor-tag${f.startsWith('SF') ? ' sf' : ''}">${f}</span>`).join('') +
-        `<span style="color:#444;margin-left:4px">(${sel.length}/3)</span>`;
+      countHtml = sel.map(n => `<span class="flavor-tag${n.startsWith('SF') ? ' sf' : ''}">${n}</span>`).join('');
     }
 
-    return `
-      <div class="step-header">
-        <div class="step-title">Add flavors</div>
-        <div class="step-subtitle">Up to 3 syrups, or grab a Signature Combo</div>
+    const filters = [
+      { id: 'all',    label: 'All'      },
+      { id: 'combos', label: '⭐ Combos' },
+      { id: 'classic',label: '☕ Classic' },
+      { id: 'fruit',  label: '🍓 Fruit'  },
+      { id: 'sf',     label: '🌿 SF'     },
+    ];
+
+    const filterBar = `
+      <div class="filter-bar">
+        ${filters.map(ft => `
+          <button class="filter-pill ${f === ft.id ? 'active' : ''}" onclick="setFlavorFilter('${ft.id}')">${ft.label}</button>
+        `).join('')}
       </div>
+    `;
 
-      <div class="flavor-count-bar">${countHtml}</div>
-
+    const comboSection = (f === 'all' || f === 'combos') ? `
       <div class="section-label">⭐ Signature Combos — Flavor Madness</div>
       <div class="combo-grid">
         ${DATA.combos.map(cb => `
@@ -893,33 +923,55 @@ const RENDERERS = {
           </div>
         `).join('')}
       </div>
+    ` : '';
 
+    const classicSection = (f === 'all' || f === 'classic') ? `
       <div class="section-label">☕ Classic Flavors</div>
       <div class="flavor-grid">
-        ${DATA.classicFlavors.map(f => `
-          <div class="flavor-chip ${sel.includes(f.name) ? 'selected' : ''}" onclick="toggleFlavor('${f.name}')">
-            <span class="f-emoji">${f.emoji}</span>${f.name}
+        ${DATA.classicFlavors.map(fl => `
+          <div class="flavor-chip ${sel.includes(fl.name) ? 'selected' : ''}" onclick="toggleFlavor('${fl.name}')">
+            <span class="f-emoji">${fl.emoji}</span>${fl.name}
           </div>
         `).join('')}
       </div>
+    ` : '';
 
+    const fruitSection = (f === 'all' || f === 'fruit') ? `
       <div class="section-label">🍓 Fruit Flavors</div>
       <div class="flavor-grid">
-        ${DATA.fruitFlavors.map(f => `
-          <div class="flavor-chip ${sel.includes(f.name) ? 'selected' : ''}" onclick="toggleFlavor('${f.name}')">
-            <span class="f-emoji">${f.emoji}</span>${f.name}
+        ${DATA.fruitFlavors.map(fl => `
+          <div class="flavor-chip ${sel.includes(fl.name) ? 'selected' : ''}" onclick="toggleFlavor('${fl.name}')">
+            <span class="f-emoji">${fl.emoji}</span>${fl.name}
           </div>
         `).join('')}
       </div>
+    ` : '';
 
+    const sfSection = (f === 'all' || f === 'sf') ? `
       <div class="section-label">🌿 Sugar-Free Syrups &amp; Sauces</div>
       <div class="flavor-grid">
-        ${DATA.sfFlavors.map(f => `
-          <div class="flavor-chip sf ${sel.includes(f.name) ? 'selected' : ''}" onclick="toggleFlavor('${f.name}')">
-            <span class="f-emoji">${f.emoji}</span>${f.name}
+        ${DATA.sfFlavors.map(fl => `
+          <div class="flavor-chip sf ${sel.includes(fl.name) ? 'selected' : ''}" onclick="toggleFlavor('${fl.name}')">
+            <span class="f-emoji">${fl.emoji}</span>${fl.name}
           </div>
         `).join('')}
       </div>
+    ` : '';
+
+    return `
+      <div class="step-header">
+        <div class="step-title">Add flavors</div>
+        <div class="step-subtitle">Pick any syrups you want, or grab a Signature Combo</div>
+      </div>
+
+      <div class="flavor-count-bar">${countHtml}</div>
+
+      ${filterBar}
+
+      ${comboSection}
+      ${classicSection}
+      ${fruitSection}
+      ${sfSection}
 
       <div class="flavor-actions">
         <button class="btn btn-red" onclick="advance()">Continue →</button>
@@ -1043,13 +1095,17 @@ function goBack() {
   if (S.step > 0) { S.step--; render(); }
 }
 
+function setFlavorFilter(id) {
+  S.flavorFilter = id;
+  render();
+}
+
 function toggleFlavor(name) {
   S.order.combo = null; // clear combo when manually picking
   const idx = S.order.flavors.indexOf(name);
   if (idx >= 0) {
     S.order.flavors.splice(idx, 1);
   } else {
-    if (S.order.flavors.length >= 3) S.order.flavors.shift();
     S.order.flavors.push(name);
   }
   render();
@@ -1076,6 +1132,7 @@ function toggleAddon(id) {
 
 function startOver() {
   S.step = 0;
+  S.flavorFilter = 'all';
   S.order = { category: null, drink: null, size: null, temp: null, milk: null, flavors: [], combo: null, sweetness: null, addons: [] };
   render();
 }
