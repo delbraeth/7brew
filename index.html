@@ -958,7 +958,10 @@ const RENDERERS = {
       </div>
     ` : '';
 
-    const classicSection = (f === 'all' || f === 'classic') ? `
+    // When a combo is active, hide individual chips to avoid confusion
+    const comboActive = !!combo;
+
+    const classicSection = !comboActive && (f === 'all' || f === 'classic') ? `
       <div class="section-label">☕ Classic Flavors</div>
       <div class="flavor-grid">
         ${DATA.classicFlavors.map(fl => `
@@ -969,7 +972,7 @@ const RENDERERS = {
       </div>
     ` : '';
 
-    const fruitSection = (f === 'all' || f === 'fruit') ? `
+    const fruitSection = !comboActive && (f === 'all' || f === 'fruit') ? `
       <div class="section-label">🍓 Fruit Flavors</div>
       <div class="flavor-grid">
         ${DATA.fruitFlavors.map(fl => `
@@ -980,7 +983,7 @@ const RENDERERS = {
       </div>
     ` : '';
 
-    const sfSection = (f === 'all' || f === 'sf') ? `
+    const sfSection = !comboActive && (f === 'all' || f === 'sf') ? `
       <div class="section-label">🌿 Sugar-Free Syrups &amp; Sauces</div>
       <div class="flavor-grid">
         ${DATA.sfFlavors.map(fl => `
@@ -988,6 +991,12 @@ const RENDERERS = {
             <span class="f-emoji">${fl.emoji}</span>${fl.name}
           </div>
         `).join('')}
+      </div>
+    ` : '';
+
+    const clearComboHint = comboActive ? `
+      <div style="text-align:center;margin:16px 0;color:#444;font-size:0.82rem">
+        Tap the combo again to deselect it, or tap a flavor filter to switch to individual syrups
       </div>
     ` : '';
 
@@ -1002,6 +1011,7 @@ const RENDERERS = {
       ${filterBar}
 
       ${comboSection}
+      ${clearComboHint}
       ${classicSection}
       ${fruitSection}
       ${sfSection}
@@ -1130,6 +1140,11 @@ function goBack() {
 
 function setFlavorFilter(id) {
   S.flavorFilter = id;
+  // Switching to an individual flavor tab clears any active combo
+  if (id !== 'combos' && id !== 'all' && S.order.combo) {
+    S.order.combo = null;
+    S.order.flavors = [];
+  }
   render();
 }
 
