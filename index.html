@@ -335,6 +335,8 @@
     .fav-btn-reorder:hover { background: #a50d26; }
     .fav-btn-delete { background: #222; color: #555; }
     .fav-btn-delete:hover { color: #C8102E; }
+    .fav-btn-share { background: #111827; color: #60a5fa; border: 1px solid #1d4ed8; }
+    .fav-btn-share:hover { background: #1e3a5f; }
 
     /* ── EMPTY STATE ── */
     .empty-state { text-align: center; padding: 70px 20px; color: #444; }
@@ -572,6 +574,13 @@
       onkeydown="if(event.key==='Enter')confirmSave()">
     <button class="btn btn-gold" onclick="confirmSave()">Save to Favorites</button>
     <button class="btn btn-ghost" onclick="closeModal('save-modal')">Cancel</button>
+  </div>
+</div>
+
+<!-- SHARED DRINK MODAL -->
+<div class="modal-overlay hidden" id="share-modal">
+  <div class="modal" style="max-width:400px">
+    <div id="share-modal-content"></div>
   </div>
 </div>
 
@@ -1187,6 +1196,7 @@ const RENDERERS = {
 
       <button class="btn btn-gold"  onclick="openSaveModal()">❤️ Save to Favorites</button>
       <button class="btn btn-green" onclick="addToCart()">➕ Add to Cart</button>
+      <button class="btn btn-ghost" onclick="shareBuild()" style="border-color:#1d4ed8;color:#60a5fa">🔗 Share This Build</button>
       <button class="btn btn-red"   onclick="startOver()">🔄 Build Another Drink</button>
     `;
   },
@@ -1324,6 +1334,7 @@ function renderFavs() {
       <div class="fav-saved">Saved ${f.date}</div>
       <div class="fav-actions">
         <button class="fav-btn fav-btn-reorder" onclick="showReorder(${i})">📋 Order Details</button>
+        <button class="fav-btn fav-btn-share" onclick="shareFav(${i})">🔗 Share</button>
         <button class="fav-btn fav-btn-delete" onclick="deleteFav(${i})">🗑️ Remove</button>
       </div>
     </div>
@@ -1584,9 +1595,107 @@ function clearCart() {
 }
 
 
+// ===================== SHARE =====================
+
+function shareItem(obj) {
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  const url = window.location.href.split('#')[0] + '#share=' + encoded;
+  navigator.clipboard.writeText(url).then(() => {
+    toast('🔗 Link copied! Send it to anyone.');
+  }).catch(() => {
+    prompt('Copy this link:', url);
+  });
+}
+
+function shareBuild() {
+  const { category: c, drink: d, size, temp, milk, flavors, combo, sweetness, addons } = S.order;
+  const milkD   = milk      ? DATA.milks.find(x => x.id === milk)         : null;
+  const tempD   = temp      ? DATA.temps.find(x => x.id === temp)          : null;
+  const sweetD  = sweetness ? DATA.sweetness.find(x => x.id === sweetness) : null;
+  const addonsD = addons.map(id => DATA.addons.find(x => x.id === id)).filter(Boolean);
+  const sizeLabel = { S:'Small', M:'Medium', L:'Large' }[size];
+  let flavorTxt = '';
+  if (combo) flavorTxt = `${combo.name}: ${combo.flavors.join(' + ')}`;
+  else if (flavors.length) flavorTxt = flavors.join(' + ');
+
+  shareItem({
+    label:     d.name,
+    drink:     d.name,
+    size:      sizeLabel,
+    temp:      tempD   ? tempD.name   : null,
+    milk:      milkD && milkD.id !== 'none' ? milkD.name : null,
+    flavors:   flavorTxt || null,
+    sweetness: sweetD  ? sweetD.name  : null,
+    addons:    addonsD.map(a => a.name),
+    price:     calcPrice(),
+  });
+}
+
+function shareFav(idx) {
+  shareItem(loadFavs()[idx]);
+}
+
+function checkShareHash() {
+  const hash = window.location.hash;
+  if (!hash.startsWith('#share=')) return;
+  try {
+    const item = JSON.parse(decodeURIComponent(escape(atob(hash.slice(7)))));
+    showSharedDrink(item);
+  } catch(e) { /* invalid hash, ignore */ }
+}
+
+function showSharedDrink(item) {
+  const lines = [
+    item.temp      ? `🌡️ ${item.temp}` : null,
+    item.milk      ? `🥛 ${item.milk}` : null,
+    item.flavors   ? `🍶 ${item.flavors}` : null,
+    item.sweetness ? `🍯 ${item.sweetness}` : null,
+    item.addons && item.addons.length ? `➕ ${item.addons.join(', ')}` : null,
+  ].filter(Boolean);
+
+  document.getElementById('share-modal-content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <span style="background:#111827;color:#60a5fa;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">🔗 Shared Drink</span>
+      <button onclick="closeModal('share-modal')" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
+    </div>
+    <div style="font-size:1.2rem;font-weight:800;margin-bottom:4px">${item.drink}</div>
+    <div style="font-size:0.88rem;color:#888;margin-bottom:10px">📦 ${item.size}</div>
+    ${lines.map(l => `<div style="font-size:0.85rem;color:#aaa;margin-bottom:5px">${l}</div>`).join('')}
+    <div style="color:#F5C518;font-weight:700;font-size:1rem;margin:14px 0 18px">Est. ~$${(item.price||0).toFixed(2)}</div>
+    <button class="btn btn-gold" onclick="saveSharedFav()">❤️ Save to My Favorites</button>
+    <button class="btn btn-ghost" onclick="closeModal('share-modal');history.replaceState(null,'',location.pathname)">Dismiss</button>
+  `;
+  window._sharedItem = item;
+  document.getElementById('share-modal').classList.remove('hidden');
+}
+
+function saveSharedFav() {
+  const item = window._sharedItem;
+  if (!item) return;
+  const fav = {
+    label:     item.label || item.drink,
+    drink:     item.drink,
+    size:      item.size,
+    temp:      item.temp     || null,
+    milk:      item.milk     || null,
+    flavors:   item.flavors  || null,
+    sweetness: item.sweetness|| null,
+    addons:    item.addons   || [],
+    price:     item.price    || 0,
+    date:      new Date().toLocaleDateString(),
+  };
+  const favs = loadFavs();
+  favs.unshift(fav);
+  saveFavs(favs);
+  closeModal('share-modal');
+  history.replaceState(null, '', location.pathname);
+  toast(`❤️ "${fav.label}" saved to your favorites!`);
+}
+
 // ===================== INIT =====================
 
 render();
+checkShareHash();
 </script>
 </body>
 </html>
