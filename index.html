@@ -338,6 +338,52 @@
     .fav-btn-share { background: #111827; color: #60a5fa; border: 1px solid #1d4ed8; }
     .fav-btn-share:hover { background: #1e3a5f; }
 
+    /* ── NAME BADGE ── */
+    .name-badge {
+      display: inline-block;
+      background: #111827; color: #60a5fa;
+      border-radius: 10px; padding: 2px 9px;
+      font-size: 0.72rem; font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    /* ── HANDOFF SCREEN ── */
+    .handoff-screen { text-align: center; padding: 40px 20px; }
+    .handoff-check { font-size: 4rem; margin-bottom: 12px; }
+    .handoff-title { font-size: 1.4rem; font-weight: 900; margin-bottom: 6px; }
+    .handoff-sub { color: #666; font-size: 0.88rem; margin-bottom: 28px; }
+    .handoff-divider { border-top: 1px solid #2a2a2a; margin: 24px 0; position: relative; }
+    .handoff-divider span {
+      position: absolute; top: -10px; left: 50%;
+      transform: translateX(-50%);
+      background: #0d0d0d; padding: 0 12px;
+      color: #444; font-size: 0.78rem;
+    }
+
+    /* ── GROUP BANNER ── */
+    .group-banner {
+      background: #111827; border: 1px solid #1d4ed8;
+      border-radius: 10px; padding: 12px 16px;
+      margin-bottom: 16px; display: flex;
+      align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .group-banner-title { color: #60a5fa; font-weight: 700; font-size: 0.88rem; }
+    .group-banner-sub { color: #4b5563; font-size: 0.75rem; margin-top: 1px; }
+    .group-banner-exit {
+      background: none; border: none; color: #374151;
+      cursor: pointer; font-size: 0.82rem; padding: 4px 8px;
+      border-radius: 6px; transition: all 0.15s; white-space: nowrap;
+    }
+    .group-banner-exit:hover { background: #1f2937; color: #9ca3af; }
+
+    /* ── PICKUP NOTE ── */
+    .pickup-note-input {
+      width: 100%; background: #111; border: 1px solid #2a2a2a;
+      color: #aaa; padding: 11px 14px; border-radius: 8px;
+      font-size: 0.85rem; outline: none; margin-bottom: 12px;
+    }
+    .pickup-note-input:focus { border-color: #555; }
+
     /* ── EMPTY STATE ── */
     .empty-state { text-align: center; padding: 70px 20px; color: #444; }
     .empty-icon { font-size: 3.5rem; margin-bottom: 14px; }
@@ -526,6 +572,13 @@
 <!-- BUILD VIEW -->
 <div id="view-build">
   <div class="container">
+    <div id="group-banner" class="group-banner hidden">
+      <div>
+        <div class="group-banner-title">👥 Group Order Mode</div>
+        <div class="group-banner-sub" id="group-banner-sub">Build your drink, then submit to the collector</div>
+      </div>
+      <button class="group-banner-exit" onclick="exitGroupMode()">✕ Exit</button>
+    </div>
     <div class="progress-wrap">
       <div class="progress-bar" id="progress-bar"></div>
       <div class="progress-label" id="progress-label"></div>
@@ -574,6 +627,17 @@
       onkeydown="if(event.key==='Enter')confirmSave()">
     <button class="btn btn-gold" onclick="confirmSave()">Save to Favorites</button>
     <button class="btn btn-ghost" onclick="closeModal('save-modal')">Cancel</button>
+  </div>
+</div>
+
+<!-- NAME MODAL (add to cart / group submit) -->
+<div class="modal-overlay hidden" id="name-modal">
+  <div class="modal">
+    <div class="modal-title" id="name-modal-title">👤 Who is this for?</div>
+    <input type="text" id="name-modal-input" placeholder="e.g. Sarah (optional)" maxlength="30"
+      onkeydown="if(event.key==='Enter')document.getElementById('name-modal-confirm').click()">
+    <button class="btn btn-red" id="name-modal-confirm" onclick="confirmAddToCart()">➕ Add to Cart</button>
+    <button class="btn btn-ghost" onclick="closeModal('name-modal')">Cancel</button>
   </div>
 </div>
 
@@ -838,6 +902,10 @@ const S = {
   step: 0,
   flavorFilter: 'all',
   cart: [],
+  pickupNote: '',
+  groupMode: false,
+  groupRoomId: null,
+  nextBuilderName: '',
   order: {
     category: null, drink: null, size: null,
     temp: null, milk: null, flavors: [], combo: null,
@@ -1195,8 +1263,11 @@ const RENDERERS = {
       <p class="price-note">Prices are estimates · actual prices vary by location</p>
 
       <button class="btn btn-gold"  onclick="openSaveModal()">❤️ Save to Favorites</button>
-      <button class="btn btn-green" onclick="addToCart()">➕ Add to Cart</button>
-      <button class="btn btn-ghost" onclick="shareBuild()" style="border-color:#1d4ed8;color:#60a5fa">🔗 Share This Build</button>
+      ${S.groupMode
+        ? `<button class="btn btn-green" onclick="promptGroupSubmit()">📤 Submit to Group Order</button>`
+        : `<button class="btn btn-green" onclick="promptAddToCart()">➕ Add to Cart</button>
+           <button class="btn btn-ghost" onclick="shareBuild()" style="border-color:#1d4ed8;color:#60a5fa">🔗 Share This Build</button>`
+      }
       <button class="btn btn-red"   onclick="startOver()">🔄 Build Another Drink</button>
     `;
   },
@@ -1507,11 +1578,68 @@ function buildCartItem() {
   };
 }
 
-function addToCart() {
+function promptAddToCart() {
+  const input = document.getElementById('name-modal-input');
+  document.getElementById('name-modal-title').textContent = '👤 Who is this for?';
+  const btn = document.getElementById('name-modal-confirm');
+  btn.textContent = '➕ Add to Cart';
+  btn.onclick = confirmAddToCart;
+  input.value = S.nextBuilderName || '';
+  document.getElementById('name-modal').classList.remove('hidden');
+  setTimeout(() => input.focus(), 100);
+}
+
+function confirmAddToCart() {
+  const name = document.getElementById('name-modal-input').value.trim();
+  closeModal('name-modal');
   const item = buildCartItem();
+  item.forName = name || null;
+  S.cart.push(item);
+  S.nextBuilderName = '';
+  updateCartBadge();
+  showHandoff(name, item);
+}
+
+function showHandoff(name, item) {
+  const label = name || 'That drink';
+  const count = S.cart.length;
+  document.getElementById('progress-bar').innerHTML = '';
+  document.getElementById('progress-label').textContent = '';
+  document.getElementById('btn-back').classList.add('hidden');
+  document.getElementById('step-content').innerHTML = `
+    <div class="handoff-screen">
+      <div class="handoff-check">✅</div>
+      <div class="handoff-title">${label}'s drink is in!</div>
+      <div class="handoff-sub">${count} drink${count !== 1 ? 's' : ''} in the cart so far · est. $${S.cart.reduce((s,i)=>s+i.price,0).toFixed(2)}</div>
+
+      <div class="handoff-divider"><span>who's next?</span></div>
+
+      <input type="text" id="handoff-next-name"
+        style="display:block;width:100%;background:#111;border:1px solid #2a2a2a;color:#fff;
+          padding:12px 14px;border-radius:8px;font-size:0.95rem;outline:none;margin-bottom:14px;
+          text-align:center;box-sizing:border-box;"
+        placeholder="Next person's name (optional)"
+        onkeydown="if(event.key==='Enter')passToNext()">
+
+      <button class="btn btn-red" onclick="passToNext()">👋 Pass the Phone →</button>
+      <button class="btn btn-ghost" onclick="switchTab('cart')">🛒 Done — See Full Order</button>
+    </div>
+  `;
+}
+
+function passToNext() {
+  const el = document.getElementById('handoff-next-name');
+  S.nextBuilderName = el ? el.value.trim() : '';
+  startOver();
+}
+
+function addToCart() {
+  // legacy: called directly when forName not needed (e.g. from fav reorder)
+  const item = buildCartItem();
+  item.forName = null;
   S.cart.push(item);
   updateCartBadge();
-  toast(`✅ "${item.drink}" added to cart (${S.cart.length} item${S.cart.length > 1 ? 's' : ''})`);
+  toast(`✅ "${item.drink}" added to cart`);
   startOver();
 }
 
@@ -1541,7 +1669,10 @@ function renderCart() {
       <div class="empty-state">
         <div class="empty-icon">🛒</div>
         <div class="empty-title">Cart is empty</div>
-        <div style="font-size:0.85rem">Build a drink and tap ➕ Add to Cart</div>
+        <div style="font-size:0.85rem;margin-bottom:22px">Build a drink and tap ➕ Add to Cart</div>
+        <button style="background:#111827;border:1px solid #1d4ed8;color:#60a5fa;border-radius:20px;
+          padding:9px 20px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-block"
+          onclick="startGroupOrder()">👥 Start a Group Order</button>
       </div>`;
     return;
   }
@@ -1549,7 +1680,7 @@ function renderCart() {
   const total = S.cart.reduce((sum, i) => sum + i.price, 0);
   sub.textContent = `${S.cart.length} drink${S.cart.length > 1 ? 's' : ''} · est. $${total.toFixed(2)}`;
 
-  // Build read-off summary text
+  // Build read-off summary text (with names)
   const summaryLines = S.cart.map((item, i) => {
     const parts = [`${item.size} ${item.drink}`];
     if (item.temp)      parts.push(item.temp);
@@ -1557,13 +1688,22 @@ function renderCart() {
     if (item.flavors)   parts.push(item.flavors);
     if (item.sweetness) parts.push(item.sweetness);
     if (item.addons && item.addons.length) parts.push(item.addons.join(', '));
-    return `${i + 1}. ${parts.join(' · ')}`;
+    const prefix = item.forName ? `(${item.forName}) ` : '';
+    return `${i + 1}. ${prefix}${parts.join(' · ')}`;
   });
+  if (S.pickupNote) summaryLines.push(`\n📍 ${S.pickupNote}`);
 
-  el.innerHTML = S.cart.map((item, i) => `
+  el.innerHTML = `
+    <div style="text-align:right;margin-bottom:10px">
+      <button style="background:#111827;border:1px solid #1d4ed8;color:#60a5fa;border-radius:20px;
+        padding:6px 14px;cursor:pointer;font-size:0.75rem;font-weight:700"
+        onclick="startGroupOrder()">👥 Group Order</button>
+    </div>
+  ` + S.cart.map((item, i) => `
     <div class="cart-item">
       <div class="cart-item-num">${i + 1}</div>
       <div class="cart-item-body">
+        ${item.forName ? `<div class="name-badge">👤 ${item.forName}</div>` : ''}
         <div class="cart-item-name">${item.drink}</div>
         <div class="cart-item-detail">
           ${item.size}${item.temp ? ' · ' + item.temp : ''}${item.milk ? ' · ' + item.milk : ''}
@@ -1582,9 +1722,19 @@ function renderCart() {
     </div>
 
     <div class="section-label" style="margin-top:18px">📋 Read-Off at the Window</div>
-    <div class="order-readoff">${summaryLines.join('\n')}</div>
+    <input type="text" class="pickup-note-input"
+      placeholder="📍 Pickup note — time, location, who to ask for..."
+      value="${S.pickupNote.replace(/"/g,'&quot;')}"
+      oninput="S.pickupNote=this.value;updateReadoff()">
+    <div class="order-readoff" id="readoff-box">${summaryLines.join('\n')}</div>
 
-    <button class="btn btn-ghost" style="margin-top:12px" onclick="clearCart()">🗑️ Clear Cart</button>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-ghost" style="flex:1;margin-bottom:0;font-size:0.82rem;border-color:#1d4ed8;color:#60a5fa"
+        onclick="shareFullCart()">🔗 Share Full Order</button>
+      <button class="btn btn-ghost" style="flex:1;margin-bottom:0;font-size:0.82rem;border-color:#1a3a1a;color:#70c070"
+        onclick="openVenmo()">💸 Venmo Split</button>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="clearCart()">🗑️ Clear Cart</button>
   `;
 }
 
@@ -1592,6 +1742,31 @@ function clearCart() {
   S.cart = [];
   updateCartBadge();
   renderCart();
+}
+
+function updateReadoff() {
+  const box = document.getElementById('readoff-box');
+  if (!box) return;
+  const lines = S.cart.map((item, i) => {
+    const parts = [`${item.size} ${item.drink}`];
+    if (item.temp)      parts.push(item.temp);
+    if (item.milk)      parts.push(item.milk);
+    if (item.flavors)   parts.push(item.flavors);
+    if (item.sweetness) parts.push(item.sweetness);
+    if (item.addons && item.addons.length) parts.push(item.addons.join(', '));
+    const prefix = item.forName ? `(${item.forName}) ` : '';
+    return `${i + 1}. ${prefix}${parts.join(' · ')}`;
+  });
+  if (S.pickupNote) lines.push(`\n📍 ${S.pickupNote}`);
+  box.textContent = lines.join('\n');
+}
+
+function openVenmo() {
+  const total = S.cart.reduce((s, i) => s + i.price, 0);
+  const per = (total / S.cart.length).toFixed(2);
+  const note = encodeURIComponent('7 Brew run');
+  window.open(`venmo://paycharge?txn=charge&amount=${per}&note=${note}`, '_blank');
+  toast(`💸 ~$${per}/person (${S.cart.length} drinks, $${total.toFixed(2)} total)`);
 }
 
 
@@ -1662,11 +1837,34 @@ function showSharedDrink(item) {
     <div style="font-size:0.88rem;color:#888;margin-bottom:10px">📦 ${item.size}</div>
     ${lines.map(l => `<div style="font-size:0.85rem;color:#aaa;margin-bottom:5px">${l}</div>`).join('')}
     <div style="color:#F5C518;font-weight:700;font-size:1rem;margin:14px 0 18px">Est. ~$${(item.price||0).toFixed(2)}</div>
-    <button class="btn btn-gold" onclick="saveSharedFav()">❤️ Save to My Favorites</button>
+    <button class="btn btn-green" onclick="addSharedToCart()">➕ Add to My Cart</button>
+    <button class="btn btn-gold" onclick="saveSharedFav()">❤️ Save to Favorites</button>
     <button class="btn btn-ghost" onclick="closeModal('share-modal');history.replaceState(null,'',location.pathname)">Dismiss</button>
   `;
   window._sharedItem = item;
   document.getElementById('share-modal').classList.remove('hidden');
+}
+
+function addSharedToCart() {
+  const item = window._sharedItem;
+  if (!item) return;
+  const cartItem = {
+    drink:     item.drink,
+    category:  item.category || '',
+    size:      item.size,
+    temp:      item.temp      || null,
+    milk:      item.milk      || null,
+    flavors:   item.flavors   || null,
+    sweetness: item.sweetness || null,
+    addons:    item.addons    || [],
+    price:     item.price     || 0,
+    forName:   (item.label && item.label !== item.drink) ? item.label : null,
+  };
+  S.cart.push(cartItem);
+  updateCartBadge();
+  closeModal('share-modal');
+  history.replaceState(null, '', location.pathname);
+  toast(`✅ "${item.drink}" added to cart!`);
 }
 
 function saveSharedFav() {
@@ -1692,10 +1890,183 @@ function saveSharedFav() {
   toast(`❤️ "${fav.label}" saved to your favorites!`);
 }
 
+// ===================== GROUP ORDER ROOM =====================
+
+function startGroupOrder() {
+  const roomId = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const url = location.href.split('#')[0] + '#room=' + roomId;
+  document.getElementById('share-modal-content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <span style="background:#111827;color:#60a5fa;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">👥 Group Order Room #${roomId}</span>
+      <button onclick="closeModal('share-modal')" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
+    </div>
+    <div style="font-weight:800;font-size:1rem;margin-bottom:6px">Share this link with your crew</div>
+    <div style="color:#666;font-size:0.82rem;margin-bottom:12px">Each person opens it, builds their drink, then submits it back to you. You open each submission to add it to your cart.</div>
+    <div class="order-readoff" style="font-size:0.75rem;word-break:break-all;margin-bottom:14px;user-select:all">${url}</div>
+    <button class="btn btn-gold" onclick="
+      navigator.clipboard.writeText('${url}')
+        .then(()=>toast('🔗 Room link copied! Share it in your group chat.'))
+        .catch(()=>prompt('Copy this link:','${url}'));
+    ">📋 Copy Room Link</button>
+    <button class="btn btn-ghost" onclick="closeModal('share-modal')">Done</button>
+  `;
+  document.getElementById('share-modal').classList.remove('hidden');
+}
+
+function checkRoomHash() {
+  const hash = window.location.hash;
+  if (!hash.startsWith('#room=')) return;
+  const roomId = hash.slice(6).split('&')[0];
+  S.groupMode = true;
+  S.groupRoomId = roomId;
+  document.getElementById('group-banner').classList.remove('hidden');
+  document.getElementById('group-banner-sub').textContent = `Room #${roomId} · Build your drink, then submit to the collector`;
+}
+
+function exitGroupMode() {
+  S.groupMode = false;
+  S.groupRoomId = null;
+  document.getElementById('group-banner').classList.add('hidden');
+  history.replaceState(null, '', location.pathname);
+  render();
+}
+
+function promptGroupSubmit() {
+  const input = document.getElementById('name-modal-input');
+  document.getElementById('name-modal-title').textContent = '📤 What\'s your name?';
+  const btn = document.getElementById('name-modal-confirm');
+  btn.textContent = '📤 Submit to Group Order';
+  btn.onclick = confirmGroupSubmit;
+  input.value = S.nextBuilderName || '';
+  document.getElementById('name-modal').classList.remove('hidden');
+  setTimeout(() => input.focus(), 100);
+}
+
+function confirmGroupSubmit() {
+  const name = document.getElementById('name-modal-input').value.trim() || 'Someone';
+  closeModal('name-modal');
+  const item = buildCartItem();
+  item.forName = name;
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(item))));
+  const url = location.href.split('#')[0] + '#submit=' + encoded;
+  document.getElementById('share-modal-content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <span style="background:#0a200a;color:#70c070;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">📤 Submission Ready</span>
+      <button onclick="closeModal('share-modal')" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
+    </div>
+    <div style="font-weight:800;font-size:1.1rem;margin-bottom:4px">${name}'s order is ready!</div>
+    <div style="color:#666;font-size:0.82rem;margin-bottom:12px">Copy this link and send it to whoever is collecting orders.</div>
+    <div class="order-readoff" style="font-size:0.72rem;word-break:break-all;margin-bottom:14px;user-select:all">${url}</div>
+    <button class="btn btn-green" onclick="
+      navigator.clipboard.writeText('${url}')
+        .then(()=>toast('📤 Copied! Send it to the collector.'))
+        .catch(()=>prompt('Send this to the collector:','${url}'));
+    ">📋 Copy &amp; Send to Collector</button>
+    <button class="btn btn-ghost" onclick="closeModal('share-modal')">Done</button>
+  `;
+  document.getElementById('share-modal').classList.remove('hidden');
+}
+
+function checkSubmitHash() {
+  const hash = window.location.hash;
+  if (!hash.startsWith('#submit=')) return;
+  try {
+    const item = JSON.parse(decodeURIComponent(escape(atob(hash.slice(8)))));
+    window._submittedItem = item;
+    const lines = [
+      item.size        ? `📦 ${item.size}` : null,
+      item.temp        ? `🌡️ ${item.temp}` : null,
+      item.milk        ? `🥛 ${item.milk}` : null,
+      item.flavors     ? `🍶 ${item.flavors}` : null,
+      item.sweetness   ? `🍯 ${item.sweetness}` : null,
+      item.addons && item.addons.length ? `➕ ${item.addons.join(', ')}` : null,
+    ].filter(Boolean);
+    document.getElementById('share-modal-content').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <span style="background:#0a200a;color:#70c070;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">📥 Order Submission</span>
+        <button onclick="closeModal('share-modal');history.replaceState(null,'',location.pathname)"
+          style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
+      </div>
+      <div style="font-size:1.15rem;font-weight:800;margin-bottom:2px">${item.forName ? item.forName + "'s order" : 'Submitted order'}</div>
+      <div style="font-size:1rem;color:#ddd;margin-bottom:10px">${item.drink}</div>
+      ${lines.map(l => `<div style="font-size:0.85rem;color:#aaa;margin-bottom:4px">${l}</div>`).join('')}
+      <div style="color:#F5C518;font-weight:700;margin:12px 0 18px">Est. ~$${(item.price||0).toFixed(2)}</div>
+      <button class="btn btn-green" onclick="addSubmittedToCart()">➕ Add to My Cart</button>
+      <button class="btn btn-ghost" onclick="closeModal('share-modal');history.replaceState(null,'',location.pathname)">Dismiss</button>
+    `;
+    document.getElementById('share-modal').classList.remove('hidden');
+    history.replaceState(null, '', location.pathname);
+  } catch(e) { /* bad hash */ }
+}
+
+function addSubmittedToCart() {
+  const item = window._submittedItem;
+  if (!item) return;
+  S.cart.push(item);
+  updateCartBadge();
+  closeModal('share-modal');
+  toast(`✅ ${item.forName ? item.forName + "'s" : 'Drink'} added to cart!`);
+  switchTab('cart');
+}
+
+// ===================== FULL ORDER SHARE =====================
+
+function shareFullCart() {
+  if (!S.cart.length) { toast('Cart is empty'); return; }
+  const payload = { type: 'order', items: S.cart, note: S.pickupNote };
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  const url = location.href.split('#')[0] + '#order=' + encoded;
+  navigator.clipboard.writeText(url)
+    .then(() => toast('📋 Full order link copied! Share with your group.'))
+    .catch(() => prompt('Share this order link:', url));
+}
+
+function checkOrderHash() {
+  const hash = window.location.hash;
+  if (!hash.startsWith('#order=')) return;
+  try {
+    const payload = JSON.parse(decodeURIComponent(escape(atob(hash.slice(7)))));
+    const items = payload.items || [];
+    const total = items.reduce((s, i) => s + (i.price || 0), 0);
+    const lines = items.map((item, i) => {
+      const parts = [`${item.size} ${item.drink}`];
+      if (item.temp)      parts.push(item.temp);
+      if (item.milk)      parts.push(item.milk);
+      if (item.flavors)   parts.push(item.flavors);
+      if (item.sweetness) parts.push(item.sweetness);
+      if (item.addons && item.addons.length) parts.push(item.addons.join(', '));
+      const prefix = item.forName ? `(${item.forName}) ` : '';
+      return `${i+1}. ${prefix}${parts.join(' · ')}`;
+    });
+    if (payload.note) lines.push(`\n📍 ${payload.note}`);
+    document.getElementById('share-modal-content').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <span style="background:#111827;color:#60a5fa;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">📋 Group Order</span>
+        <button onclick="closeModal('share-modal');history.replaceState(null,'',location.pathname)"
+          style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
+      </div>
+      <div style="font-weight:800;font-size:1rem;margin-bottom:12px">${items.length} drink${items.length !== 1 ? 's' : ''} · Est. ~$${total.toFixed(2)}</div>
+      <div class="order-readoff">${lines.join('\n')}</div>
+      <button class="btn btn-ghost" style="margin-top:12px"
+        onclick="closeModal('share-modal');history.replaceState(null,'',location.pathname)">Close</button>
+    `;
+    document.getElementById('share-modal').classList.remove('hidden');
+    history.replaceState(null, '', location.pathname);
+  } catch(e) { /* bad hash */ }
+}
+
 // ===================== INIT =====================
 
+function checkHashes() {
+  const hash = window.location.hash;
+  if      (hash.startsWith('#share='))  checkShareHash();
+  else if (hash.startsWith('#submit=')) checkSubmitHash();
+  else if (hash.startsWith('#order='))  checkOrderHash();
+  else if (hash.startsWith('#room='))   checkRoomHash();
+}
+
 render();
-checkShareHash();
+checkHashes();
 </script>
 </body>
 </html>
