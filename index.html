@@ -1763,10 +1763,31 @@ function updateReadoff() {
 
 function openVenmo() {
   const total = S.cart.reduce((s, i) => s + i.price, 0);
-  const per = (total / S.cart.length).toFixed(2);
-  const note = encodeURIComponent('7 Brew run');
-  window.open(`venmo://paycharge?txn=charge&amount=${per}&note=${note}`, '_blank');
-  toast(`💸 ~$${per}/person (${S.cart.length} drinks, $${total.toFixed(2)} total)`);
+  const count = S.cart.length;
+  const per = (total / count).toFixed(2);
+  const noteRaw = '7 Brew run';
+  const noteEnc = encodeURIComponent(noteRaw);
+  const appUrl  = `venmo://paycharge?txn=charge&amount=${per}&note=${noteEnc}`;
+  const webUrl  = `https://venmo.com/?txn=charge&amount=${per}&note=${noteEnc}`;
+
+  document.getElementById('share-modal-content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <span style="background:#1a3a1a;color:#70c070;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">💸 Venmo Split</span>
+      <button onclick="closeModal('share-modal')" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
+    </div>
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:2.4rem;font-weight:900;color:#F5C518">$${per}</div>
+      <div style="color:#666;font-size:0.85rem;margin-top:4px">per person · ${count} drink${count!==1?'s':''} · ~$${total.toFixed(2)} total</div>
+      <div style="color:#3a3a3a;font-size:0.75rem;margin-top:3px">Prices are estimates</div>
+    </div>
+    <button class="btn btn-green" onclick="window.location.href='${appUrl}'">📱 Open Venmo App</button>
+    <button class="btn btn-ghost" onclick="window.open('${webUrl}','_blank')" style="border-color:#1a3a1a;color:#70c070">🌐 Venmo.com</button>
+    <button class="btn btn-ghost" onclick="
+      navigator.clipboard.writeText('$${per}').then(()=>toast('💸 $${per} copied!')).catch(()=>{});
+      closeModal('share-modal');
+    ">📋 Copy Amount</button>
+  `;
+  document.getElementById('share-modal').classList.remove('hidden');
 }
 
 
