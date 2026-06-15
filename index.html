@@ -1367,6 +1367,20 @@ function switchTab(tab) {
   if (tab === 'cart') renderCart();
 }
 
+// ===================== CART PERSISTENCE =====================
+
+function saveCart() {
+  try { localStorage.setItem('7choose_cart', JSON.stringify({ cart: S.cart, note: S.pickupNote })); }
+  catch(e) {}
+}
+function loadCart() {
+  try {
+    const d = JSON.parse(localStorage.getItem('7choose_cart') || '{}');
+    if (Array.isArray(d.cart)) S.cart = d.cart;
+    if (d.note) S.pickupNote = d.note;
+  } catch(e) {}
+}
+
 // ===================== FAVORITES =====================
 
 function loadFavs() {
@@ -1595,6 +1609,7 @@ function confirmAddToCart() {
   const item = buildCartItem();
   item.forName = name || null;
   S.cart.push(item);
+  saveCart();
   S.nextBuilderName = '';
   updateCartBadge();
   showHandoff(name, item);
@@ -1638,6 +1653,7 @@ function addToCart() {
   const item = buildCartItem();
   item.forName = null;
   S.cart.push(item);
+  saveCart();
   updateCartBadge();
   toast(`✅ "${item.drink}" added to cart`);
   startOver();
@@ -1655,6 +1671,7 @@ function updateCartBadge() {
 
 function removeFromCart(idx) {
   S.cart.splice(idx, 1);
+  saveCart();
   updateCartBadge();
   renderCart();
 }
@@ -1725,7 +1742,7 @@ function renderCart() {
     <input type="text" class="pickup-note-input"
       placeholder="📍 Pickup note — time, location, who to ask for..."
       value="${S.pickupNote.replace(/"/g,'&quot;')}"
-      oninput="S.pickupNote=this.value;updateReadoff()">
+      oninput="S.pickupNote=this.value;updateReadoff();saveCart()">
     <div class="order-readoff" id="readoff-box">${summaryLines.join('\n')}</div>
 
     <div style="display:flex;gap:8px;margin-top:10px">
@@ -1740,6 +1757,7 @@ function renderCart() {
 
 function clearCart() {
   S.cart = [];
+  saveCart();
   updateCartBadge();
   renderCart();
 }
@@ -1882,6 +1900,7 @@ function addSharedToCart() {
     forName:   (item.label && item.label !== item.drink) ? item.label : null,
   };
   S.cart.push(cartItem);
+  saveCart();
   updateCartBadge();
   closeModal('share-modal');
   history.replaceState(null, '', location.pathname);
@@ -2024,6 +2043,7 @@ function addSubmittedToCart() {
   const item = window._submittedItem;
   if (!item) return;
   S.cart.push(item);
+  saveCart();
   updateCartBadge();
   closeModal('share-modal');
   toast(`✅ ${item.forName ? item.forName + "'s" : 'Drink'} added to cart!`);
@@ -2086,6 +2106,7 @@ function checkHashes() {
   else if (hash.startsWith('#room='))   checkRoomHash();
 }
 
+loadCart();
 render();
 checkHashes();
 </script>
