@@ -905,6 +905,7 @@ const S = {
   pickupNote: '',
   groupMode: false,
   groupRoomId: null,
+  isCollector: false,
   nextBuilderName: '',
   order: {
     category: null, drink: null, size: null,
@@ -1712,9 +1713,12 @@ function renderCart() {
 
   el.innerHTML = `
     <div style="text-align:right;margin-bottom:10px">
-      <button style="background:#111827;border:1px solid #1d4ed8;color:#60a5fa;border-radius:20px;
-        padding:6px 14px;cursor:pointer;font-size:0.75rem;font-weight:700"
-        onclick="startGroupOrder()">👥 Group Order</button>
+      ${S.isCollector && S.groupRoomId && firebaseReady()
+        ? `<span style="background:#0a200a;color:#70c070;border-radius:20px;padding:6px 14px;font-size:0.75rem;font-weight:700;cursor:default">⚡ Live Room #${S.groupRoomId}</span>`
+        : `<button style="background:#111827;border:1px solid #1d4ed8;color:#60a5fa;border-radius:20px;
+            padding:6px 14px;cursor:pointer;font-size:0.75rem;font-weight:700"
+            onclick="startGroupOrder()">👥 Group Order</button>`
+      }
     </div>
   ` + S.cart.map((item, i) => `
     <div class="cart-item">
@@ -1930,25 +1934,104 @@ function saveSharedFav() {
   toast(`❤️ "${fav.label}" saved to your favorites!`);
 }
 
+// ===================== FIREBASE REAL-TIME =====================
+// Fill in your Firebase project config below.
+// Free setup: console.firebase.google.com → Create project → Realtime Database
+// Rules: set { "rules": { "rooms": { "$r": { ".read": true, ".write": true } } } }
+
+const FIREBASE_CONFIG = {
+  apiKey:      "YOUR_API_KEY",
+  authDomain:  "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId:   "YOUR_PROJECT",
+};
+
+let _db = null;
+
+function firebaseReady() { return _db !== null; }
+
+function initFirebase() {
+  if (FIREBASE_CONFIG.databaseURL.includes('YOUR_PROJECT')) return;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    _db = firebase.database();
+
+    // Update submitter banner if already in group mode
+    const bannerSub = document.getElementById('group-banner-sub');
+    if (S.groupMode && S.groupRoomId && bannerSub) {
+      bannerSub.textContent = `Room #${S.groupRoomId} · Build your drink and submit — it goes straight to the collector ⚡`;
+    }
+
+    // Reconnect collector room from previous session (up to 4 hrs)
+    try {
+      const d = JSON.parse(localStorage.getItem('7choose_room') || '{}');
+      if (d.roomId && d.isCollector && (Date.now() - d.ts) < 4 * 3600000) {
+        S.groupRoomId = d.roomId;
+        S.isCollector = true;
+        listenForOrders(d.roomId);
+        toast(`⚡ Reconnected to Room #${d.roomId}`);
+        if (S.tab === 'cart') renderCart();
+      }
+    } catch(e) {}
+  } catch(e) { console.warn('Firebase init failed:', e); }
+}
+
+function pushDrinkToRoom(roomId, item) {
+  if (!firebaseReady()) return false;
+  try { _db.ref(`rooms/${roomId}/orders`).push(item); return true; }
+  catch(e) { return false; }
+}
+
+function listenForOrders(roomId) {
+  if (!firebaseReady()) return;
+  // Build a set of Firebase keys already in the cart (from localStorage restore)
+  const seen = new Set(S.cart.filter(i => i._fbKey).map(i => i._fbKey));
+  _db.ref(`rooms/${roomId}/orders`).on('child_added', snap => {
+    const key = snap.key;
+    if (seen.has(key)) return; // already in cart
+    seen.add(key);
+    const item = snap.val();
+    item._fbKey = key;
+    S.cart.push(item);
+    saveCart();
+    updateCartBadge();
+    if (S.tab === 'cart') renderCart();
+    toast(`🎉 ${item.forName ? item.forName + "'s" : 'A'} drink just came in!`);
+  });
+}
+
 // ===================== GROUP ORDER ROOM =====================
 
 function startGroupOrder() {
   const roomId = Math.random().toString(36).slice(2, 8).toUpperCase();
+  S.groupRoomId = roomId;
+  S.isCollector = true;
   const url = location.href.split('#')[0] + '#room=' + roomId;
+
+  if (firebaseReady()) {
+    _db.ref(`rooms/${roomId}/meta`).set({ created: Date.now() });
+    listenForOrders(roomId);
+    try { localStorage.setItem('7choose_room', JSON.stringify({ roomId, isCollector: true, ts: Date.now() })); } catch(e) {}
+  }
+
+  const live = firebaseReady();
   document.getElementById('share-modal-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-      <span style="background:#111827;color:#60a5fa;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">👥 Group Order Room #${roomId}</span>
+      <span style="background:${live ? '#0a200a' : '#111827'};color:${live ? '#70c070' : '#60a5fa'};border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">${live ? '⚡ Live Room' : '👥 Group Order Room'} #${roomId}</span>
       <button onclick="closeModal('share-modal')" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
     </div>
     <div style="font-weight:800;font-size:1rem;margin-bottom:6px">Share this link with your crew</div>
-    <div style="color:#666;font-size:0.82rem;margin-bottom:12px">Each person opens it, builds their drink, then submits it back to you. You open each submission to add it to your cart.</div>
+    <div style="color:#666;font-size:0.82rem;margin-bottom:12px">${live
+      ? "Each person opens it, builds their drink, and hits Submit. Their order appears in your cart automatically — no copy-paste needed."
+      : "Each person opens it, builds their drink, then submits it back to you. You open each submission to add it to your cart."
+    }</div>
     <div class="order-readoff" style="font-size:0.75rem;word-break:break-all;margin-bottom:14px;user-select:all">${url}</div>
     <button class="btn btn-gold" onclick="
       navigator.clipboard.writeText('${url}')
         .then(()=>toast('🔗 Room link copied! Share it in your group chat.'))
         .catch(()=>prompt('Copy this link:','${url}'));
     ">📋 Copy Room Link</button>
-    <button class="btn btn-ghost" onclick="closeModal('share-modal')">Done</button>
+    <button class="btn btn-ghost" onclick="closeModal('share-modal')">${live ? "Done — watch your cart for orders ⚡" : "Done"}</button>
   `;
   document.getElementById('share-modal').classList.remove('hidden');
 }
@@ -1960,7 +2043,9 @@ function checkRoomHash() {
   S.groupMode = true;
   S.groupRoomId = roomId;
   document.getElementById('group-banner').classList.remove('hidden');
-  document.getElementById('group-banner-sub').textContent = `Room #${roomId} · Build your drink, then submit to the collector`;
+  document.getElementById('group-banner-sub').textContent = firebaseReady()
+    ? `Room #${roomId} · Build your drink and submit — it goes straight to the collector ⚡`
+    : `Room #${roomId} · Build your drink, then submit to the collector`;
 }
 
 function exitGroupMode() {
@@ -1987,6 +2072,31 @@ function confirmGroupSubmit() {
   closeModal('name-modal');
   const item = buildCartItem();
   item.forName = name;
+
+  // Try Firebase live push first
+  const pushedLive = pushDrinkToRoom(S.groupRoomId, item);
+
+  if (pushedLive) {
+    document.getElementById('share-modal-content').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <span style="background:#0a200a;color:#70c070;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">⚡ Submitted!</span>
+        <button onclick="closeModal('share-modal')" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
+      </div>
+      <div style="text-align:center;padding:8px 0 14px">
+        <div style="font-size:3rem;margin-bottom:8px">✅</div>
+        <div style="font-weight:800;font-size:1.1rem;margin-bottom:4px">${name}'s order is in!</div>
+        <div style="color:#666;font-size:0.85rem">It went straight to the collector's cart. No copy-paste needed.</div>
+      </div>
+      <div style="background:#111;border-radius:8px;padding:12px;font-size:0.82rem;color:#aaa;text-align:center;margin-bottom:16px">
+        ${item.size} ${item.drink}${item.temp ? ' · ' + item.temp : ''}${item.milk ? ' · ' + item.milk : ''}
+      </div>
+      <button class="btn btn-ghost" onclick="closeModal('share-modal')">Done 🎉</button>
+    `;
+    document.getElementById('share-modal').classList.remove('hidden');
+    return;
+  }
+
+  // Fallback: URL hash method (no Firebase)
   const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(item))));
   const url = location.href.split('#')[0] + '#submit=' + encoded;
   document.getElementById('share-modal-content').innerHTML = `
@@ -2110,5 +2220,9 @@ loadCart();
 render();
 checkHashes();
 </script>
+<!-- Firebase: loaded after main script so initFirebase() is defined first -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>initFirebase();</script>
 </body>
 </html>
