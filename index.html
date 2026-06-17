@@ -652,6 +652,50 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ===================== HELPERS =====================
+
+// HTML-escape any string before injecting into innerHTML.
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// UTF-8-safe base64 (replaces deprecated escape/unescape).
+function b64encode(obj) {
+  const json = JSON.stringify(obj);
+  const bytes = new TextEncoder().encode(json);
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+function b64decode(str) {
+  const bin = atob(str);
+  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  const json = new TextDecoder().decode(bytes);
+  return JSON.parse(json);
+}
+
+// Make the click-only div "buttons" keyboard-operable (focusable + ARIA role).
+const A11Y_SELECTOR = '.card,.size-card,.option-item,.combo-card,.flavor-chip,.addon-item';
+function applyA11y() {
+  document.querySelectorAll(A11Y_SELECTOR).forEach(el => {
+    if (!el.hasAttribute('role'))     el.setAttribute('role', 'button');
+    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+  });
+}
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') &&
+      e.target.matches && e.target.matches(A11Y_SELECTOR)) {
+    e.preventDefault();
+    e.target.click();
+  }
+});
+
 // ===================== DATA =====================
 
 const DATA = {
@@ -786,6 +830,8 @@ const DATA = {
     { id: 'salted_caramel', name: 'Salted Caramel',       emoji: '🧂' },
     { id: 'white_choc',     name: 'White Choc',           emoji: '🤍' },
     { id: 'chocolate',      name: 'Chocolate',            emoji: '🍫' },
+    { id: 'mocha',          name: 'Mocha',                emoji: '☕' },
+    { id: 'cinnamon',       name: 'Cinnamon',             emoji: '🍂' },
     { id: 'hazelnut',       name: 'Hazelnut',             emoji: '🌰' },
     { id: 'irish_cream',    name: 'Irish Cream',          emoji: '🍀' },
     { id: 'brown_sugar_cin',name: 'Brown Sugar Cinnamon', emoji: '🍂' },
@@ -806,7 +852,7 @@ const DATA = {
     { id: 'strawberry',   name: 'Strawberry',    emoji: '🍓' },
     { id: 'raspberry',    name: 'Raspberry',     emoji: '🫐' },
     { id: 'blue_rasp',    name: 'Blue Raspberry',emoji: '💙' },
-    { id: 'blackberry',   name: 'Blackberry',    emoji: '🫐' },
+    { id: 'blackberry',   name: 'Blackberry',    emoji: '🖤' },
     { id: 'cherry',       name: 'Cherry',        emoji: '🍒' },
     { id: 'peach',        name: 'Peach',         emoji: '🍑' },
     { id: 'mango',        name: 'Mango',         emoji: '🥭' },
@@ -961,6 +1007,7 @@ function render() {
   document.getElementById('btn-back').classList.toggle('hidden', S.step === 0);
   const el = document.getElementById('step-content');
   el.innerHTML = RENDERERS[stepName]();
+  applyA11y();
 }
 
 function renderProgress(steps, idx) {
@@ -1407,17 +1454,17 @@ function renderFavs() {
   el.innerHTML = favs.map((f, i) => `
     <div class="fav-card" id="fav-card-${i}">
       <div class="fav-label-row">
-        <div class="fav-label" id="fav-label-${i}">${f.label}</div>
+        <div class="fav-label" id="fav-label-${i}">${esc(f.label)}</div>
         <button class="fav-edit-btn" onclick="startRename(${i})" title="Rename">✏️</button>
       </div>
-      <div class="fav-detail"><strong>Drink:</strong> ${f.drink} · ${f.size}</div>
-      ${f.temp ? `<div class="fav-detail"><strong>Prep:</strong> ${f.temp}</div>` : ''}
-      ${f.milk ? `<div class="fav-detail"><strong>Milk:</strong> ${f.milk}</div>` : ''}
-      ${f.flavors ? `<div class="fav-detail"><strong>Flavors:</strong> ${f.flavors}</div>` : ''}
-      ${f.sweetness ? `<div class="fav-detail"><strong>Sweet:</strong> ${f.sweetness}</div>` : ''}
-      ${f.addons && f.addons.length ? `<div class="fav-detail"><strong>Extras:</strong> ${f.addons.join(', ')}</div>` : ''}
-      <div class="fav-est">Est. ~$${f.price.toFixed(2)}</div>
-      <div class="fav-saved">Saved ${f.date}</div>
+      <div class="fav-detail"><strong>Drink:</strong> ${esc(f.drink)} · ${esc(f.size)}</div>
+      ${f.temp ? `<div class="fav-detail"><strong>Prep:</strong> ${esc(f.temp)}</div>` : ''}
+      ${f.milk ? `<div class="fav-detail"><strong>Milk:</strong> ${esc(f.milk)}</div>` : ''}
+      ${f.flavors ? `<div class="fav-detail"><strong>Flavors:</strong> ${esc(f.flavors)}</div>` : ''}
+      ${f.sweetness ? `<div class="fav-detail"><strong>Sweet:</strong> ${esc(f.sweetness)}</div>` : ''}
+      ${f.addons && f.addons.length ? `<div class="fav-detail"><strong>Extras:</strong> ${esc(f.addons.join(', '))}</div>` : ''}
+      <div class="fav-est">Est. ~$${(Number(f.price) || 0).toFixed(2)}</div>
+      <div class="fav-saved">Saved ${esc(f.date)}</div>
       <div class="fav-actions">
         <button class="fav-btn fav-btn-reorder" onclick="showReorder(${i})">📋 Order Details</button>
         <button class="fav-btn fav-btn-share" onclick="shareFav(${i})">🔗 Share</button>
@@ -1430,14 +1477,14 @@ function renderFavs() {
 function showReorder(idx) {
   const f = loadFavs()[idx];
   const lines = [
-    `🍵 <strong>${f.drink}</strong>`,
-    `📦 Size: ${f.size}`,
-    f.temp      ? `🌡️ Prep: ${f.temp}` : null,
-    f.milk      ? `🥛 Milk: ${f.milk}` : null,
-    f.flavors   ? `🍶 Flavors: ${f.flavors}` : null,
-    f.sweetness ? `🍯 Sweetness: ${f.sweetness}` : null,
-    f.addons && f.addons.length ? `➕ Extras: ${f.addons.join(', ')}` : null,
-    `<br>💰 Est. ~$${f.price.toFixed(2)}`,
+    `🍵 <strong>${esc(f.drink)}</strong>`,
+    `📦 Size: ${esc(f.size)}`,
+    f.temp      ? `🌡️ Prep: ${esc(f.temp)}` : null,
+    f.milk      ? `🥛 Milk: ${esc(f.milk)}` : null,
+    f.flavors   ? `🍶 Flavors: ${esc(f.flavors)}` : null,
+    f.sweetness ? `🍯 Sweetness: ${esc(f.sweetness)}` : null,
+    f.addons && f.addons.length ? `➕ Extras: ${esc(f.addons.join(', '))}` : null,
+    `<br>💰 Est. ~$${(Number(f.price) || 0).toFixed(2)}`,
   ].filter(Boolean);
   document.getElementById('reorder-content').innerHTML = lines.join('<br>');
   document.getElementById('reorder-modal').classList.remove('hidden');
@@ -1625,7 +1672,7 @@ function showHandoff(name, item) {
   document.getElementById('step-content').innerHTML = `
     <div class="handoff-screen">
       <div class="handoff-check">✅</div>
-      <div class="handoff-title">${label}'s drink is in!</div>
+      <div class="handoff-title">${esc(label)}'s drink is in!</div>
       <div class="handoff-sub">${count} drink${count !== 1 ? 's' : ''} in the cart so far · est. $${S.cart.reduce((s,i)=>s+i.price,0).toFixed(2)}</div>
 
       <div class="handoff-divider"><span>who's next?</span></div>
@@ -1698,23 +1745,23 @@ function renderCart() {
   const total = S.cart.reduce((sum, i) => sum + i.price, 0);
   sub.textContent = `${S.cart.length} drink${S.cart.length > 1 ? 's' : ''} · est. $${total.toFixed(2)}`;
 
-  // Build read-off summary text (with names)
+  // Build read-off summary text (with names) — escaped for innerHTML
   const summaryLines = S.cart.map((item, i) => {
-    const parts = [`${item.size} ${item.drink}`];
-    if (item.temp)      parts.push(item.temp);
-    if (item.milk)      parts.push(item.milk);
-    if (item.flavors)   parts.push(item.flavors);
-    if (item.sweetness) parts.push(item.sweetness);
-    if (item.addons && item.addons.length) parts.push(item.addons.join(', '));
-    const prefix = item.forName ? `(${item.forName}) ` : '';
+    const parts = [`${esc(item.size)} ${esc(item.drink)}`];
+    if (item.temp)      parts.push(esc(item.temp));
+    if (item.milk)      parts.push(esc(item.milk));
+    if (item.flavors)   parts.push(esc(item.flavors));
+    if (item.sweetness) parts.push(esc(item.sweetness));
+    if (item.addons && item.addons.length) parts.push(esc(item.addons.join(', ')));
+    const prefix = item.forName ? `(${esc(item.forName)}) ` : '';
     return `${i + 1}. ${prefix}${parts.join(' · ')}`;
   });
-  if (S.pickupNote) summaryLines.push(`\n📍 ${S.pickupNote}`);
+  if (S.pickupNote) summaryLines.push(`\n📍 ${esc(S.pickupNote)}`);
 
   el.innerHTML = `
     <div style="text-align:right;margin-bottom:10px">
       ${S.isCollector && S.groupRoomId && firebaseReady()
-        ? `<span style="background:#0a200a;color:#70c070;border-radius:20px;padding:6px 14px;font-size:0.75rem;font-weight:700;cursor:default">⚡ Live Room #${S.groupRoomId}</span>`
+        ? `<span style="background:#0a200a;color:#70c070;border-radius:20px;padding:6px 14px;font-size:0.75rem;font-weight:700;cursor:default">⚡ Live Room #${esc(S.groupRoomId)}</span>`
         : `<button style="background:#111827;border:1px solid #1d4ed8;color:#60a5fa;border-radius:20px;
             padding:6px 14px;cursor:pointer;font-size:0.75rem;font-weight:700"
             onclick="startGroupOrder()">👥 Group Order</button>`
@@ -1724,15 +1771,15 @@ function renderCart() {
     <div class="cart-item">
       <div class="cart-item-num">${i + 1}</div>
       <div class="cart-item-body">
-        ${item.forName ? `<div class="name-badge">👤 ${item.forName}</div>` : ''}
-        <div class="cart-item-name">${item.drink}</div>
+        ${item.forName ? `<div class="name-badge">👤 ${esc(item.forName)}</div>` : ''}
+        <div class="cart-item-name">${esc(item.drink)}</div>
         <div class="cart-item-detail">
-          ${item.size}${item.temp ? ' · ' + item.temp : ''}${item.milk ? ' · ' + item.milk : ''}
-          ${item.flavors ? '<br>' + item.flavors : ''}
-          ${item.sweetness ? ' · ' + item.sweetness : ''}
-          ${item.addons && item.addons.length ? '<br>+ ' + item.addons.join(', ') : ''}
+          ${esc(item.size)}${item.temp ? ' · ' + esc(item.temp) : ''}${item.milk ? ' · ' + esc(item.milk) : ''}
+          ${item.flavors ? '<br>' + esc(item.flavors) : ''}
+          ${item.sweetness ? ' · ' + esc(item.sweetness) : ''}
+          ${item.addons && item.addons.length ? '<br>+ ' + esc(item.addons.join(', ')) : ''}
         </div>
-        <div class="cart-item-price">~$${item.price.toFixed(2)}</div>
+        <div class="cart-item-price">~$${(Number(item.price) || 0).toFixed(2)}</div>
       </div>
       <button class="cart-item-del" onclick="removeFromCart(${i})">✕</button>
     </div>
@@ -1745,7 +1792,7 @@ function renderCart() {
     <div class="section-label" style="margin-top:18px">📋 Read-Off at the Window</div>
     <input type="text" class="pickup-note-input"
       placeholder="📍 Pickup note — time, location, who to ask for..."
-      value="${S.pickupNote.replace(/"/g,'&quot;')}"
+      value="${esc(S.pickupNote)}"
       oninput="S.pickupNote=this.value;updateReadoff();saveCart()">
     <div class="order-readoff" id="readoff-box">${summaryLines.join('\n')}</div>
 
@@ -1760,10 +1807,13 @@ function renderCart() {
 }
 
 function clearCart() {
+  if (!S.cart.length) return;
+  if (!confirm(`Clear all ${S.cart.length} drink${S.cart.length > 1 ? 's' : ''} from the cart?`)) return;
   S.cart = [];
   saveCart();
   updateCartBadge();
   renderCart();
+  toast('🗑️ Cart cleared');
 }
 
 function updateReadoff() {
@@ -1784,39 +1834,64 @@ function updateReadoff() {
 }
 
 function openVenmo() {
-  const total = S.cart.reduce((s, i) => s + i.price, 0);
-  const count = S.cart.length;
-  const per = (total / count).toFixed(2);
-  const noteRaw = '7 Brew run';
-  const noteEnc = encodeURIComponent(noteRaw);
-  const appUrl  = `venmo://paycharge?txn=charge&amount=${per}&note=${noteEnc}`;
-  const webUrl  = `https://venmo.com/?txn=charge&amount=${per}&note=${noteEnc}`;
+  const total = S.cart.reduce((s, i) => s + (Number(i.price) || 0), 0);
+  // Default the split to the number of distinct named people, not the drink count.
+  const namedPeople = new Set(
+    S.cart.filter(i => i.forName).map(i => i.forName.trim().toLowerCase())
+  );
+  const defaultPeople = Math.max(namedPeople.size, 1);
+  window._venmoTotal = total;
 
   document.getElementById('share-modal-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
       <span style="background:#1a3a1a;color:#70c070;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">💸 Venmo Split</span>
       <button onclick="closeModal('share-modal')" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
     </div>
-    <div style="text-align:center;margin-bottom:18px">
-      <div style="font-size:2.4rem;font-weight:900;color:#F5C518">$${per}</div>
-      <div style="color:#666;font-size:0.85rem;margin-top:4px">per person · ${count} drink${count!==1?'s':''} · ~$${total.toFixed(2)} total</div>
+    <div style="text-align:center;margin-bottom:14px">
+      <div id="venmo-per" style="font-size:2.4rem;font-weight:900;color:#F5C518">$${(total / defaultPeople).toFixed(2)}</div>
+      <div style="color:#666;font-size:0.85rem;margin-top:4px">per person · ~$${total.toFixed(2)} total</div>
       <div style="color:#3a3a3a;font-size:0.75rem;margin-top:3px">Prices are estimates</div>
     </div>
-    <button class="btn btn-green" onclick="window.location.href='${appUrl}'">📱 Open Venmo App</button>
-    <button class="btn btn-ghost" onclick="window.open('${webUrl}','_blank')" style="border-color:#1a3a1a;color:#70c070">🌐 Venmo.com</button>
-    <button class="btn btn-ghost" onclick="
-      navigator.clipboard.writeText('$${per}').then(()=>toast('💸 $${per} copied!')).catch(()=>{});
-      closeModal('share-modal');
-    ">📋 Copy Amount</button>
+    <label style="display:flex;align-items:center;justify-content:center;gap:10px;color:#888;font-size:0.85rem;margin-bottom:16px">
+      Split between
+      <input type="number" id="venmo-people" min="1" value="${defaultPeople}" oninput="updateVenmoSplit()"
+        style="width:64px;background:#0d0d0d;border:1px solid #333;color:#fff;padding:8px;border-radius:8px;text-align:center;font-size:1rem;outline:none">
+      people
+    </label>
+    <button class="btn btn-green" onclick="venmoOpen('app')">📱 Open Venmo App</button>
+    <button class="btn btn-ghost" onclick="venmoOpen('web')" style="border-color:#1a3a1a;color:#70c070">🌐 Venmo.com</button>
+    <button class="btn btn-ghost" onclick="venmoCopy()">📋 Copy Amount</button>
   `;
   document.getElementById('share-modal').classList.remove('hidden');
+}
+
+function venmoPerAmount() {
+  const n = Math.max(1, parseInt(document.getElementById('venmo-people').value, 10) || 1);
+  return ((window._venmoTotal || 0) / n).toFixed(2);
+}
+function updateVenmoSplit() {
+  document.getElementById('venmo-per').textContent = '$' + venmoPerAmount();
+}
+function venmoOpen(which) {
+  const per = venmoPerAmount();
+  const note = encodeURIComponent('7 Brew run');
+  if (which === 'app') {
+    window.location.href = `venmo://paycharge?txn=charge&amount=${per}&note=${note}`;
+  } else {
+    window.open(`https://venmo.com/?txn=charge&amount=${per}&note=${note}`, '_blank');
+  }
+}
+function venmoCopy() {
+  const per = venmoPerAmount();
+  navigator.clipboard.writeText('$' + per).then(() => toast(`💸 $${per} copied!`)).catch(() => {});
+  closeModal('share-modal');
 }
 
 
 // ===================== SHARE =====================
 
 function shareItem(obj) {
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  const encoded = b64encode(obj);
   const url = window.location.href.split('#')[0] + '#share=' + encoded;
   navigator.clipboard.writeText(url).then(() => {
     toast('🔗 Link copied! Send it to anyone.');
@@ -1839,6 +1914,7 @@ function shareBuild() {
   shareItem({
     label:     d.name,
     drink:     d.name,
+    category:  c.name,
     size:      sizeLabel,
     temp:      tempD   ? tempD.name   : null,
     milk:      milkD && milkD.id !== 'none' ? milkD.name : null,
@@ -1857,18 +1933,18 @@ function checkShareHash() {
   const hash = window.location.hash;
   if (!hash.startsWith('#share=')) return;
   try {
-    const item = JSON.parse(decodeURIComponent(escape(atob(hash.slice(7)))));
+    const item = b64decode(hash.slice(7));
     showSharedDrink(item);
   } catch(e) { /* invalid hash, ignore */ }
 }
 
 function showSharedDrink(item) {
   const lines = [
-    item.temp      ? `🌡️ ${item.temp}` : null,
-    item.milk      ? `🥛 ${item.milk}` : null,
-    item.flavors   ? `🍶 ${item.flavors}` : null,
-    item.sweetness ? `🍯 ${item.sweetness}` : null,
-    item.addons && item.addons.length ? `➕ ${item.addons.join(', ')}` : null,
+    item.temp      ? `🌡️ ${esc(item.temp)}` : null,
+    item.milk      ? `🥛 ${esc(item.milk)}` : null,
+    item.flavors   ? `🍶 ${esc(item.flavors)}` : null,
+    item.sweetness ? `🍯 ${esc(item.sweetness)}` : null,
+    item.addons && item.addons.length ? `➕ ${esc(item.addons.join(', '))}` : null,
   ].filter(Boolean);
 
   document.getElementById('share-modal-content').innerHTML = `
@@ -1876,10 +1952,10 @@ function showSharedDrink(item) {
       <span style="background:#111827;color:#60a5fa;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">🔗 Shared Drink</span>
       <button onclick="closeModal('share-modal')" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
     </div>
-    <div style="font-size:1.2rem;font-weight:800;margin-bottom:4px">${item.drink}</div>
-    <div style="font-size:0.88rem;color:#888;margin-bottom:10px">📦 ${item.size}</div>
+    <div style="font-size:1.2rem;font-weight:800;margin-bottom:4px">${esc(item.drink)}</div>
+    <div style="font-size:0.88rem;color:#888;margin-bottom:10px">📦 ${esc(item.size)}</div>
     ${lines.map(l => `<div style="font-size:0.85rem;color:#aaa;margin-bottom:5px">${l}</div>`).join('')}
-    <div style="color:#F5C518;font-weight:700;font-size:1rem;margin:14px 0 18px">Est. ~$${(item.price||0).toFixed(2)}</div>
+    <div style="color:#F5C518;font-weight:700;font-size:1rem;margin:14px 0 18px">Est. ~$${(Number(item.price)||0).toFixed(2)}</div>
     <button class="btn btn-green" onclick="addSharedToCart()">➕ Add to My Cart</button>
     <button class="btn btn-gold" onclick="saveSharedFav()">❤️ Save to Favorites</button>
     <button class="btn btn-ghost" onclick="closeModal('share-modal');history.replaceState(null,'',location.pathname)">Dismiss</button>
@@ -1937,7 +2013,39 @@ function saveSharedFav() {
 // ===================== FIREBASE REAL-TIME =====================
 // Fill in your Firebase project config below.
 // Free setup: console.firebase.google.com → Create project → Realtime Database
-// Rules: set { "rules": { "rooms": { "$r": { ".read": true, ".write": true } } } }
+//
+// IMPORTANT — do NOT use the wide-open rule { ".read": true, ".write": true }.
+// That lets anyone dump every room (names + orders) and write arbitrary data.
+// Use these locked-down rules instead (paste into Realtime Database → Rules):
+//
+// {
+//   "rules": {
+//     "rooms": {
+//       ".read": false,            // the /rooms list is NOT enumerable
+//       ".write": false,
+//       "$room": {
+//         ".read":  "$room.length == 6",   // must know the 6-char room code
+//         ".write": "$room.length == 6",
+//         "meta":   { ".validate": "newData.hasChild('created')" },
+//         "orders": {
+//           "$id": {
+//             // TTL: reject writes once the room is older than 4 hours
+//             ".validate": "root.child('rooms/'+$room+'/meta/created').val() > now - 14400000",
+//             "forName": { ".validate": "newData.isString() && newData.val().length < 40"  },
+//             "drink":   { ".validate": "newData.isString() && newData.val().length < 60"  },
+//             "flavors": { ".validate": "newData.isString() && newData.val().length < 200" },
+//             "$other":  { ".validate": true }
+//           }
+//         }
+//       }
+//     }
+//   }
+// }
+//
+// Note: room codes are 6 chars (~2 billion combos) so they aren't bulk-guessable,
+// but a shared link is still a bearer token — anyone with the link can join.
+// The client also HTML-escapes all order fields, so a malicious payload can't
+// execute script in the collector's browser even if it reaches the database.
 
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyBgrc0YNl0emWrLZeunm1MaHGsg7MV05-w",
@@ -1985,14 +2093,28 @@ function pushDrinkToRoom(roomId, item) {
   catch(e) { return false; }
 }
 
+// Persisted set of Firebase order keys we've already imported for a room, so
+// clearing the cart and reconnecting doesn't re-add every past order.
+function processedKeys(roomId) {
+  try { return new Set(JSON.parse(localStorage.getItem('7choose_seen_' + roomId) || '[]')); }
+  catch { return new Set(); }
+}
+function markProcessed(roomId, key) {
+  const s = processedKeys(roomId);
+  s.add(key);
+  try { localStorage.setItem('7choose_seen_' + roomId, JSON.stringify([...s])); } catch(e) {}
+}
+
 function listenForOrders(roomId) {
   if (!firebaseReady()) return;
-  // Build a set of Firebase keys already in the cart (from localStorage restore)
-  const seen = new Set(S.cart.filter(i => i._fbKey).map(i => i._fbKey));
+  // Seed dedup from persisted processed keys + anything currently in the cart.
+  const seen = processedKeys(roomId);
+  S.cart.filter(i => i._fbKey).forEach(i => seen.add(i._fbKey));
   _db.ref(`rooms/${roomId}/orders`).on('child_added', snap => {
     const key = snap.key;
-    if (seen.has(key)) return; // already in cart
+    if (seen.has(key)) return; // already imported
     seen.add(key);
+    markProcessed(roomId, key);
     const item = snap.val();
     item._fbKey = key;
     S.cart.push(item);
@@ -2087,11 +2209,11 @@ function confirmGroupSubmit() {
       </div>
       <div style="text-align:center;padding:8px 0 14px">
         <div style="font-size:3rem;margin-bottom:8px">✅</div>
-        <div style="font-weight:800;font-size:1.1rem;margin-bottom:4px">${name}'s order is in!</div>
+        <div style="font-weight:800;font-size:1.1rem;margin-bottom:4px">${esc(name)}'s order is in!</div>
         <div style="color:#666;font-size:0.85rem">It went straight to the collector's cart. No copy-paste needed.</div>
       </div>
       <div style="background:#111;border-radius:8px;padding:12px;font-size:0.82rem;color:#aaa;text-align:center;margin-bottom:16px">
-        ${item.size} ${item.drink}${item.temp ? ' · ' + item.temp : ''}${item.milk ? ' · ' + item.milk : ''}
+        ${esc(item.size)} ${esc(item.drink)}${item.temp ? ' · ' + esc(item.temp) : ''}${item.milk ? ' · ' + esc(item.milk) : ''}
       </div>
       <button class="btn btn-ghost" onclick="closeModal('share-modal')">Done 🎉</button>
     `;
@@ -2100,14 +2222,14 @@ function confirmGroupSubmit() {
   }
 
   // Fallback: URL hash method (no Firebase)
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(item))));
+  const encoded = b64encode(item);
   const url = location.href.split('#')[0] + '#submit=' + encoded;
   document.getElementById('share-modal-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
       <span style="background:#0a200a;color:#70c070;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">📤 Submission Ready</span>
       <button onclick="closeModal('share-modal')" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
     </div>
-    <div style="font-weight:800;font-size:1.1rem;margin-bottom:4px">${name}'s order is ready!</div>
+    <div style="font-weight:800;font-size:1.1rem;margin-bottom:4px">${esc(name)}'s order is ready!</div>
     <div style="color:#666;font-size:0.82rem;margin-bottom:12px">Copy this link and send it to whoever is collecting orders.</div>
     <div class="order-readoff" style="font-size:0.72rem;word-break:break-all;margin-bottom:14px;user-select:all">${url}</div>
     <button class="btn btn-green" onclick="
@@ -2124,15 +2246,15 @@ function checkSubmitHash() {
   const hash = window.location.hash;
   if (!hash.startsWith('#submit=')) return;
   try {
-    const item = JSON.parse(decodeURIComponent(escape(atob(hash.slice(8)))));
+    const item = b64decode(hash.slice(8));
     window._submittedItem = item;
     const lines = [
-      item.size        ? `📦 ${item.size}` : null,
-      item.temp        ? `🌡️ ${item.temp}` : null,
-      item.milk        ? `🥛 ${item.milk}` : null,
-      item.flavors     ? `🍶 ${item.flavors}` : null,
-      item.sweetness   ? `🍯 ${item.sweetness}` : null,
-      item.addons && item.addons.length ? `➕ ${item.addons.join(', ')}` : null,
+      item.size        ? `📦 ${esc(item.size)}` : null,
+      item.temp        ? `🌡️ ${esc(item.temp)}` : null,
+      item.milk        ? `🥛 ${esc(item.milk)}` : null,
+      item.flavors     ? `🍶 ${esc(item.flavors)}` : null,
+      item.sweetness   ? `🍯 ${esc(item.sweetness)}` : null,
+      item.addons && item.addons.length ? `➕ ${esc(item.addons.join(', '))}` : null,
     ].filter(Boolean);
     document.getElementById('share-modal-content').innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
@@ -2140,10 +2262,10 @@ function checkSubmitHash() {
         <button onclick="closeModal('share-modal');history.replaceState(null,'',location.pathname)"
           style="background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1">✕</button>
       </div>
-      <div style="font-size:1.15rem;font-weight:800;margin-bottom:2px">${item.forName ? item.forName + "'s order" : 'Submitted order'}</div>
-      <div style="font-size:1rem;color:#ddd;margin-bottom:10px">${item.drink}</div>
+      <div style="font-size:1.15rem;font-weight:800;margin-bottom:2px">${item.forName ? esc(item.forName) + "'s order" : 'Submitted order'}</div>
+      <div style="font-size:1rem;color:#ddd;margin-bottom:10px">${esc(item.drink)}</div>
       ${lines.map(l => `<div style="font-size:0.85rem;color:#aaa;margin-bottom:4px">${l}</div>`).join('')}
-      <div style="color:#F5C518;font-weight:700;margin:12px 0 18px">Est. ~$${(item.price||0).toFixed(2)}</div>
+      <div style="color:#F5C518;font-weight:700;margin:12px 0 18px">Est. ~$${(Number(item.price)||0).toFixed(2)}</div>
       <button class="btn btn-green" onclick="addSubmittedToCart()">➕ Add to My Cart</button>
       <button class="btn btn-ghost" onclick="closeModal('share-modal');history.replaceState(null,'',location.pathname)">Dismiss</button>
     `;
@@ -2168,7 +2290,7 @@ function addSubmittedToCart() {
 function shareFullCart() {
   if (!S.cart.length) { toast('Cart is empty'); return; }
   const payload = { type: 'order', items: S.cart, note: S.pickupNote };
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  const encoded = b64encode(payload);
   const url = location.href.split('#')[0] + '#order=' + encoded;
   navigator.clipboard.writeText(url)
     .then(() => toast('📋 Full order link copied! Share with your group.'))
@@ -2179,20 +2301,20 @@ function checkOrderHash() {
   const hash = window.location.hash;
   if (!hash.startsWith('#order=')) return;
   try {
-    const payload = JSON.parse(decodeURIComponent(escape(atob(hash.slice(7)))));
+    const payload = b64decode(hash.slice(7));
     const items = payload.items || [];
-    const total = items.reduce((s, i) => s + (i.price || 0), 0);
+    const total = items.reduce((s, i) => s + (Number(i.price) || 0), 0);
     const lines = items.map((item, i) => {
-      const parts = [`${item.size} ${item.drink}`];
-      if (item.temp)      parts.push(item.temp);
-      if (item.milk)      parts.push(item.milk);
-      if (item.flavors)   parts.push(item.flavors);
-      if (item.sweetness) parts.push(item.sweetness);
-      if (item.addons && item.addons.length) parts.push(item.addons.join(', '));
-      const prefix = item.forName ? `(${item.forName}) ` : '';
+      const parts = [`${esc(item.size)} ${esc(item.drink)}`];
+      if (item.temp)      parts.push(esc(item.temp));
+      if (item.milk)      parts.push(esc(item.milk));
+      if (item.flavors)   parts.push(esc(item.flavors));
+      if (item.sweetness) parts.push(esc(item.sweetness));
+      if (item.addons && item.addons.length) parts.push(esc(item.addons.join(', ')));
+      const prefix = item.forName ? `(${esc(item.forName)}) ` : '';
       return `${i+1}. ${prefix}${parts.join(' · ')}`;
     });
-    if (payload.note) lines.push(`\n📍 ${payload.note}`);
+    if (payload.note) lines.push(`\n📍 ${esc(payload.note)}`);
     document.getElementById('share-modal-content').innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
         <span style="background:#111827;color:#60a5fa;border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700">📋 Group Order</span>
